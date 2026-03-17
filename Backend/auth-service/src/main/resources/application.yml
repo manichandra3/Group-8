@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/sharebazaar
     username: postgres
-    password: postgres
+    password: password
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -16,6 +16,10 @@ spring:
       hibernate:
         format_sql: true
     show-sql: false
+
+jwt:
+  secret: ${JWT_SECRET:YTJiM2M0ZDVlNmY3ZzhoOWkwajFrMmwzbTRuNW82cDdxOHI5czB0MXUydjN3NHg1eTZ6N2E4Yjlj}
+  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
 eureka:
   client:
