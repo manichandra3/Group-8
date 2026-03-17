@@ -16,6 +16,7 @@ spring:
               - GET
               - POST
               - PUT
+              - PATCH
               - DELETE
               - OPTIONS
             allowedHeaders:
@@ -28,6 +29,10 @@ spring:
           uri: lb://auth-service
           predicates:
             - Path=/auth/**
+        - id: stock-service
+          uri: lb://stock-service
+          predicates:
+            - Path=/api/companies/**,/api/shares/**
 
 eureka:
   client:
