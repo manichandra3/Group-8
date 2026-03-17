@@ -1,5 +1,6 @@
 package com.sharebazaar.auth.dto;
 
+import com.sharebazaar.auth.domain.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -17,6 +18,9 @@ public class RegisterRequest {
     @NotBlank(message = "Password is required")
     @Size(min = 8, max = 120, message = "Password must be between 8 and 120 characters")
     private String password;
+
+    /* NEW FIELD */
+    private Role role;
 
     public String getUsername() {
         return username;
@@ -40,5 +44,15 @@ public class RegisterRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    /* GETTER + SETTER FOR ROLE */
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
     }
 }

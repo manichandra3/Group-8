@@ -1,5 +1,6 @@
 package com.sharebazaar.auth.service;
 
+import com.sharebazaar.auth.domain.Role;
 import com.sharebazaar.auth.domain.User;
 import com.sharebazaar.auth.dto.AuthResponse;
 import com.sharebazaar.auth.dto.LoginRequest;
@@ -22,9 +23,11 @@ public class AuthService {
     }
 
     public UserDto register(RegisterRequest request) {
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new GlobalException("Email is already registered");
         }
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new GlobalException("Username is already taken");
         }
@@ -34,11 +37,25 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
+        /* ROLE LOGIC */
+        if (request.getRole() == null) {
+            user.setRole(Role.USER);
+        } else {
+            user.setRole(request.getRole());
+        }
+
         User savedUser = userRepository.save(user);
-        return new UserDto(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
+
+        return new UserDto(
+                savedUser.getId(),
+                savedUser.getUsername(),
+                savedUser.getEmail(),
+                savedUser.getRole().name()
+        );
     }
 
     public AuthResponse login(LoginRequest request) {
+
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new GlobalException("Invalid credentials"));
 
@@ -46,8 +63,16 @@ public class AuthService {
             throw new GlobalException("Invalid credentials");
         }
 
+        /* Replace with real JWT later */
         String token = "mock-jwt-token-for-" + user.getUsername();
-        UserDto userDto = new UserDto(user.getId(), user.getUsername(), user.getEmail());
+
+        UserDto userDto = new UserDto(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+
         return new AuthResponse(token, userDto);
     }
 }

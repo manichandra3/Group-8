@@ -1,61 +1,97 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-/* Trust stats shown below logo — builds brand confidence */
+/* Trust stats shown below logo */
 const TRUST_STATS = [
-  { val: "2M+",   lbl: "Traders" },
+  { val: "2M+", lbl: "Traders" },
   { val: "₹4.2T", lbl: "Volume" },
-  { val: "99.9%", lbl: "Uptime"  },
-  { val: "SEBI",  lbl: "Regulated" },
+  { val: "99.9%", lbl: "Uptime" },
+  { val: "SEBI", lbl: "Regulated" },
 ];
 
-export default function Login({ onLoginSuccess, setShowLogin, quotes }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error,    setError]    = useState("");
-  const [loading,  setLoading]  = useState(false);
+export default function Login({ quotes }) {
 
-  const handleLogin = () => {
+  const navigate = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+
     setError("");
-    if (!username.trim() || !password) {
-      setError("Please enter your username and password.");
+
+    if (!email || !password) {
+      setError("Please enter email and password");
       return;
     }
-    setLoading(true);
-    setTimeout(() => {
-      const stored = JSON.parse(localStorage.getItem("tp_user") || "null");
-      if (stored && username.trim() === stored.username && password === stored.password) {
-        onLoginSuccess(username.trim());
-      } else {
-        setError("Invalid credentials. Please check and try again.");
+
+    try {
+
+      setLoading(true);
+
+      const res = await fetch("http://localhost:8081/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Invalid credentials");
         setLoading(false);
+        return;
       }
-    }, 700);
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("username", data.user.username);
+      localStorage.setItem("role", data.user.role);
+
+      if (data.user.role === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/home");
+      }
+
+    } catch {
+      setError("Server error. Try again.");
+    }
+
+    setLoading(false);
   };
 
-  // Pick 3 key index quotes for the bottom chips
   const chips = quotes
-    .filter((q) => ["NIFTY 50", "SENSEX", "INFY"].includes(q.label))
+    ?.filter((q) => ["NIFTY 50", "SENSEX", "INFY"].includes(q.label))
     .slice(0, 3);
 
   return (
     <div className="auth-card">
-      {/* Logo */}
+
       <div className="logo-row">
         <div className="logo-gem">📈</div>
+
         <div>
           <div className="logo-name">TRADE<em>PULSE</em></div>
           <div className="logo-tag">India's most trusted trading platform</div>
         </div>
+
         <div className="live-chip">
           <span className="dot-blink" />
           LIVE
         </div>
       </div>
 
-      {/* Trust bar */}
       <div className="trust-bar">
         {TRUST_STATS.map((t, i) => (
-          <div key={t.lbl} style={{ display: "flex", flex: 1, alignItems: "center" }}>
+          <div key={t.lbl} style={{ display: "flex", flex: 1 }}>
             {i > 0 && <div className="trust-div" />}
             <div className="trust-item" style={{ flex: 1 }}>
               <div className="trust-val">{t.val}</div>
@@ -65,12 +101,15 @@ export default function Login({ onLoginSuccess, setShowLogin, quotes }) {
         ))}
       </div>
 
-      {/* Glass panel */}
       <div className="glass-panel fade-in">
-        {/* Tabs */}
+
         <div className="tab-row">
           <button className="tab-btn active">Sign In</button>
-          <button className="tab-btn" onClick={() => setShowLogin(false)}>
+
+          <button
+            className="tab-btn"
+            onClick={() => navigate("/register")}
+          >
             Register
           </button>
         </div>
@@ -78,33 +117,33 @@ export default function Login({ onLoginSuccess, setShowLogin, quotes }) {
         {error && <div className="alert alert-err">⚠ {error}</div>}
 
         <div className="form-group">
-          <label className="form-label">Account ID / Username</label>
+          <label className="form-label">Email</label>
+
           <div className="input-wrap">
-            <span className="input-icon">👤</span>
+            <span className="input-icon">📧</span>
+
             <input
               className="form-input"
-              type="text"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              autoComplete="username"
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
         </div>
 
         <div className="form-group">
-          <label className="form-label">Password / Security PIN</label>
+          <label className="form-label">Password</label>
+
           <div className="input-wrap">
             <span className="input-icon">🔒</span>
+
             <input
               className="form-input"
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              autoComplete="current-password"
             />
           </div>
         </div>
@@ -114,40 +153,23 @@ export default function Login({ onLoginSuccess, setShowLogin, quotes }) {
           onClick={handleLogin}
           disabled={loading}
         >
-          {loading ? (
-            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              <span className="spinner" /> Authenticating…
-            </span>
-          ) : (
-            "▶ Access Market"
-          )}
+          {loading ? "Authenticating..." : "▶ Access Market"}
         </button>
 
-        {/* Live market chips — real data from Yahoo Finance */}
-        {chips.length > 0 && (
+        {chips?.length > 0 && (
           <div className="mkt-row">
             {chips.map((q) => (
               <div className="mkt-chip" key={q.label}>
                 <div className={`mkt-val ${q.up ? "up" : "dn"}`}>
                   {q.up ? "▲" : "▼"} {Math.abs(q.changePct)}%
                 </div>
+
                 <div className="mkt-lbl">{q.label}</div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Skeleton chips while loading */}
-        {chips.length === 0 && (
-          <div className="mkt-row">
-            {[1, 2, 3].map((i) => (
-              <div className="mkt-chip" key={i}>
-                <div className="skeleton" style={{ width: "60%", margin: "0 auto 6px" }} />
-                <div className="skeleton" style={{ width: "40%", margin: "0 auto" }} />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

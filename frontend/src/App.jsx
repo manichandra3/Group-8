@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Home from "./pages/Home";
+import AdminDashboard from "./pages/AdminDashboard";
+
 import { fetchAllQuotes } from "./stockService";
 import "./index.css";
+import { DataProvider } from "./context/DataContext";
 
 /* ─── Background layers ─── */
 function BgCanvas() {
@@ -31,7 +36,6 @@ function TickerBar({ quotes, loading }) {
     );
   }
 
-  // Duplicate array for seamless infinite scroll
   const items = [...quotes, ...quotes];
 
   return (
@@ -41,7 +45,8 @@ function TickerBar({ quotes, loading }) {
           <span className="t-item" key={i}>
             <span className="t-sym">{q.label}</span>
             <span className="t-val">
-              {q.currency === "INR" ? "₹" : "$"}{Number(q.price).toLocaleString("en-IN")}
+              {q.currency === "INR" ? "₹" : "$"}
+              {Number(q.price).toLocaleString("en-IN")}
             </span>
             <span className={q.up ? "t-up" : "t-dn"}>
               {q.up ? "▲" : "▼"} {Math.abs(q.changePct)}%
@@ -53,54 +58,122 @@ function TickerBar({ quotes, loading }) {
   );
 }
 
+/* ─── Protected Route ─── */
+function ProtectedRoute({ children, roleRequired }) {
+
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (roleRequired && role !== roleRequired) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
 /* ─── Root App ─── */
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLogin,  setShowLogin]  = useState(true);
-  const [username,   setUsername]   = useState("");
-  const [quotes,     setQuotes]     = useState([]);
+  const navigate = useNavigate();
+
+  const [quotes, setQuotes] = useState([]);
   const [tickerLoading, setTickerLoading] = useState(true);
 
-  // Fetch real quotes on mount and every 60 seconds
+  /* Fetch market data */
   useEffect(() => {
+
     let mounted = true;
+
     const load = async () => {
       try {
         const data = await fetchAllQuotes();
+
         if (mounted && data.length > 0) {
           setQuotes(data);
           setTickerLoading(false);
         }
+
       } catch {
         if (mounted) setTickerLoading(false);
       }
     };
+
     load();
-    const interval = setInterval(load, 60_000);
-    return () => { mounted = false; clearInterval(interval); };
+    const interval = setInterval(load, 60000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+
   }, []);
 
-  const handleLoginSuccess = (user) => { setUsername(user); setIsLoggedIn(true); };
-  const handleLogout = () => { setIsLoggedIn(false); setUsername(""); setShowLogin(true); };
-
   return (
-    <>
+
+    <DataProvider>
+
       <BgCanvas />
+
       <TickerBar quotes={quotes} loading={tickerLoading} />
 
       <div className="page-wrap">
-        {isLoggedIn ? (
-          <Home username={username} quotes={quotes} onLogout={handleLogout} />
-        ) : showLogin ? (
-          <Login
-            quotes={quotes}
-            onLoginSuccess={handleLoginSuccess}
-            setShowLogin={setShowLogin}
+
+        <Routes>
+
+          {/* LOGIN */}
+          <Route
+            path="/login"
+            element={<Login quotes={quotes} />}
           />
-        ) : (
-          <Register setShowLogin={setShowLogin} />
-        )}
+
+          {/* REGISTER */}
+          <Route
+            path="/register"
+            element={<Register />}
+          />
+
+          {/* USER DASHBOARD */}
+          {/* USER DASHBOARD */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute roleRequired="USER">
+                <Home
+                  quotes={quotes}
+                  onLogout={() => {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("role");
+                    localStorage.removeItem("username");
+                    navigate("/login");
+                  }}
+                />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ADMIN DASHBOARD */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute roleRequired="ADMIN">
+                <AdminDashboard onSignOut={() => navigate("/login")} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* DEFAULT */}
+          <Route
+            path="*"
+            element={<Navigate to="/login" />}
+          />
+
+        </Routes>
+
       </div>
-    </>
+
+    </DataProvider>
   );
 }

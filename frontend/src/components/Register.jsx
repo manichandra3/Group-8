@@ -1,117 +1,190 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function Register({ setShowLogin }) {
+export default function Register() {
+
+  const navigate = useNavigate();
+
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
-  const [confirm,  setConfirm]  = useState("");
-  const [error,    setError]    = useState("");
-  const [success,  setSuccess]  = useState(false);
-  const [loading,  setLoading]  = useState(false);
+  const [confirm, setConfirm] = useState("");
 
-  const handleRegister = () => {
+  const [role, setRole] = useState("USER");
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+
     setError("");
-    if (!username.trim() || !password || !confirm) {
-      setError("All fields are required.");
-      return;
-    }
-    if (username.trim().length < 3) {
-      setError("Username must be at least 3 characters.");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwords do not match.");
+
+    if (!username || !email || !password || !confirm) {
+      setError("All fields required");
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("tp_user", JSON.stringify({
-        username: username.trim(),
-        password,
-      }));
+    if (password !== confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    try {
+
+      setLoading(true);
+
+      const res = await fetch("http://localhost:8081/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          role
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Registration failed");
+        setLoading(false);
+        return;
+      }
+
       setSuccess(true);
-      setLoading(false);
-      setTimeout(() => setShowLogin(true), 1600);
-    }, 800);
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
+
+    } catch {
+      setError("Server error");
+    }
+
+    setLoading(false);
   };
 
   return (
     <div className="auth-card">
-      {/* Logo */}
+
       <div className="logo-row">
         <div className="logo-gem">📈</div>
+
         <div>
           <div className="logo-name">TRADE<em>PULSE</em></div>
-          <div className="logo-tag">Create your free trading account</div>
+          <div className="logo-tag">Create your trading account</div>
         </div>
+
         <div className="live-chip">
           <span className="dot-blink" />
           LIVE
         </div>
       </div>
 
-      {/* Glass panel */}
       <div className="glass-panel fade-in">
-        {/* Tabs */}
+
         <div className="tab-row">
-          <button className="tab-btn" onClick={() => setShowLogin(true)}>
+
+          <button
+            className="tab-btn"
+            onClick={() => navigate("/login")}
+          >
             Sign In
           </button>
-          <button className="tab-btn active">Register</button>
+
+          <button className="tab-btn active">
+            Register
+          </button>
+
         </div>
 
-        {error   && <div className="alert alert-err">⚠ {error}</div>}
-        {success && <div className="alert alert-ok">✓ Account created! Redirecting to login…</div>}
+        {error && <div className="alert alert-err">⚠ {error}</div>}
+
+        {success && (
+          <div className="alert alert-ok">
+            ✓ Account created successfully
+          </div>
+        )}
 
         <div className="form-group">
-          <label className="form-label">Trader Handle</label>
+          <label className="form-label">Username</label>
+
           <div className="input-wrap">
             <span className="input-icon">👤</span>
+
             <input
               className="form-input"
               type="text"
-              placeholder="Choose a username (min. 3 chars)"
+              placeholder="Enter username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              disabled={success}
             />
           </div>
         </div>
 
         <div className="form-group">
-          <label className="form-label">Set Password</label>
+          <label className="form-label">Email</label>
+
+          <div className="input-wrap">
+            <span className="input-icon">📧</span>
+
+            <input
+              className="form-input"
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Role</label>
+
+          <select
+            className="form-input"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="USER">User</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Password</label>
+
           <div className="input-wrap">
             <span className="input-icon">🔒</span>
+
             <input
               className="form-input"
               type="password"
-              placeholder="Minimum 6 characters"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              disabled={success}
             />
           </div>
         </div>
 
         <div className="form-group">
           <label className="form-label">Confirm Password</label>
+
           <div className="input-wrap">
             <span className="input-icon">🔑</span>
+
             <input
               className="form-input"
               type="password"
-              placeholder="Repeat your password"
+              placeholder="Confirm password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleRegister()}
-              autoComplete="new-password"
-              disabled={success}
             />
           </div>
         </div>
@@ -119,24 +192,11 @@ export default function Register({ setShowLogin }) {
         <button
           className="btn-primary"
           onClick={handleRegister}
-          disabled={loading || success}
+          disabled={loading}
         >
-          {loading ? (
-            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              <span className="spinner" /> Creating Account…
-            </span>
-          ) : (
-            "▶ Create Free Account"
-          )}
+          {loading ? "Creating..." : "▶ Create Account"}
         </button>
 
-        {/* Reassurance note */}
-        <p style={{
-          textAlign: "center", marginTop: 16,
-          fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6
-        }}>
-          🔐 Your data is encrypted end-to-end &nbsp;·&nbsp; SEBI Regulated
-        </p>
       </div>
     </div>
   );
