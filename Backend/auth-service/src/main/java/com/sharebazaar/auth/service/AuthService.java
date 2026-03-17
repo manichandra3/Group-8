@@ -67,7 +67,7 @@ public class AuthService {
             throw new GlobalException("Invalid credentials");
         }
 
-        String token = jwtService.generateToken(user.getEmail(), user.getUsername(), user.getId());
+        String token = jwtService.generateToken(user.getEmail(), user.getUsername(), user.getId(), user.getRole().name());
         long expiresIn = jwtService.getExpirationMs();
         UserDto userDto = toUserDto(user);
 

@@ -118,7 +118,7 @@ class AuthServiceTest {
                 passwordEncoder.encode("Secret123!"));
 
         when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(user));
-        when(jwtService.generateToken(anyString(), anyString(), anyLong())).thenReturn("test-jwt-token");
+        when(jwtService.generateToken(anyString(), anyString(), anyLong(), anyString())).thenReturn("test-jwt-token");
         when(jwtService.getExpirationMs()).thenReturn(3600000L);
 
         AuthResponse response = authService.login(request);
