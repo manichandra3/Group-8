@@ -1,34 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Home from "./pages/Home";
+import { fetchAllQuotes } from "./stockService";
 import "./index.css";
 
-// ── Animated ticker data ──
-const STOCKS = [
-  { sym: "RELIANCE", val: "₹2,847", chg: "+1.24%" },
-  { sym: "TCS",      val: "₹3,921", chg: "-0.43%" },
-  { sym: "INFY",     val: "₹1,502", chg: "+0.87%" },
-  { sym: "HDFCBANK", val: "₹1,623", chg: "-1.12%" },
-  { sym: "WIPRO",    val: "₹448",   chg: "+2.01%" },
-  { sym: "NIFTY50",  val: "22,543", chg: "+0.56%" },
-  { sym: "SENSEX",   val: "74,231", chg: "+0.38%" },
-  { sym: "ADANI",    val: "₹2,109", chg: "-0.91%" },
-  { sym: "ITC",      val: "₹437",   chg: "+0.65%" },
-  { sym: "BAJFIN",   val: "₹6,782", chg: "+1.30%" },
-];
-
-function Ticker() {
-  const items = [...STOCKS, ...STOCKS]; // doubled for seamless loop
+/* ─── Background layers ─── */
+function BgCanvas() {
   return (
-    <div className="ticker-container">
+    <>
+      <div className="bg-canvas">
+        <div className="bg-orb orb-a" />
+        <div className="bg-orb orb-b" />
+        <div className="bg-orb orb-c" />
+        <div className="bg-orb orb-d" />
+      </div>
+      <div className="bg-grid" />
+      <div className="bg-beam" />
+    </>
+  );
+}
+
+/* ─── Live Ticker Strip ─── */
+function TickerBar({ quotes, loading }) {
+  if (loading) {
+    return (
+      <div className="ticker-bar">
+        <span className="t-loading">⟳ Fetching live market data…</span>
+      </div>
+    );
+  }
+
+  // Duplicate array for seamless infinite scroll
+  const items = [...quotes, ...quotes];
+
+  return (
+    <div className="ticker-bar">
       <div className="ticker-track">
-        {items.map((s, i) => (
-          <span className="ticker-item" key={i}>
-            <span className="sym">{s.sym}</span>
-            {s.val}{" "}
-            <span className={s.chg.startsWith("+") ? "up" : "down"}>
-              {s.chg.startsWith("+") ? "▲" : "▼"} {s.chg}
+        {items.map((q, i) => (
+          <span className="t-item" key={i}>
+            <span className="t-sym">{q.label}</span>
+            <span className="t-val">
+              {q.currency === "INR" ? "₹" : "$"}{Number(q.price).toLocaleString("en-IN")}
+            </span>
+            <span className={q.up ? "t-up" : "t-dn"}>
+              {q.up ? "▲" : "▼"} {Math.abs(q.changePct)}%
             </span>
           </span>
         ))}
@@ -37,44 +53,47 @@ function Ticker() {
   );
 }
 
-function AuroraBg() {
-  return (
-    <div className="aurora-bg">
-      <div className="aurora-orb" />
-      <div className="aurora-orb" />
-      <div className="aurora-orb" />
-      <div className="aurora-orb" />
-    </div>
-  );
-}
+/* ─── Root App ─── */
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLogin,  setShowLogin]  = useState(true);
+  const [username,   setUsername]   = useState("");
+  const [quotes,     setQuotes]     = useState([]);
+  const [tickerLoading, setTickerLoading] = useState(true);
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn]   = useState(false);
-  const [showLogin, setShowLogin]     = useState(true);
-  const [username, setUsername]       = useState("");
+  // Fetch real quotes on mount and every 60 seconds
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const data = await fetchAllQuotes();
+        if (mounted && data.length > 0) {
+          setQuotes(data);
+          setTickerLoading(false);
+        }
+      } catch {
+        if (mounted) setTickerLoading(false);
+      }
+    };
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
 
-  const handleLoginSuccess = (user) => {
-    setUsername(user);
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUsername("");
-    setShowLogin(true);
-  };
+  const handleLoginSuccess = (user) => { setUsername(user); setIsLoggedIn(true); };
+  const handleLogout = () => { setIsLoggedIn(false); setUsername(""); setShowLogin(true); };
 
   return (
     <>
-      <AuroraBg />
-      <div className="grid-overlay" />
-      <Ticker />
+      <BgCanvas />
+      <TickerBar quotes={quotes} loading={tickerLoading} />
 
-      <div className="app-wrapper">
+      <div className="page-wrap">
         {isLoggedIn ? (
-          <Home username={username} onLogout={handleLogout} />
+          <Home username={username} quotes={quotes} onLogout={handleLogout} />
         ) : showLogin ? (
           <Login
+            quotes={quotes}
             onLoginSuccess={handleLoginSuccess}
             setShowLogin={setShowLogin}
           />
@@ -85,5 +104,3 @@ function App() {
     </>
   );
 }
-
-export default App;

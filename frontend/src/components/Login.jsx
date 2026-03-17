@@ -1,52 +1,72 @@
 import { useState } from "react";
 
-const MARKET_STATS = [
-  { label: "NIFTY 50",  val: "22,543", up: true  },
-  { label: "SENSEX",    val: "74,231", up: true  },
-  { label: "NIFTY IT",  val: "33,120", up: false },
+/* Trust stats shown below logo — builds brand confidence */
+const TRUST_STATS = [
+  { val: "2M+",   lbl: "Traders" },
+  { val: "₹4.2T", lbl: "Volume" },
+  { val: "99.9%", lbl: "Uptime"  },
+  { val: "SEBI",  lbl: "Regulated" },
 ];
 
-function Login({ onLoginSuccess, setShowLogin }) {
+export default function Login({ onLoginSuccess, setShowLogin, quotes }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
 
   const handleLogin = () => {
     setError("");
-    if (!username || !password) {
-      setError("Please enter both username and password.");
+    if (!username.trim() || !password) {
+      setError("Please enter your username and password.");
       return;
     }
-
     setLoading(true);
     setTimeout(() => {
       const stored = JSON.parse(localStorage.getItem("tp_user") || "null");
-      if (stored && username === stored.username && password === stored.password) {
-        onLoginSuccess(username);
+      if (stored && username.trim() === stored.username && password === stored.password) {
+        onLoginSuccess(username.trim());
       } else {
-        setError("Invalid credentials. Please try again.");
+        setError("Invalid credentials. Please check and try again.");
         setLoading(false);
       }
-    }, 600); // simulate network delay
+    }, 700);
   };
 
-  const handleKey = (e) => { if (e.key === "Enter") handleLogin(); };
+  // Pick 3 key index quotes for the bottom chips
+  const chips = quotes
+    .filter((q) => ["NIFTY 50", "SENSEX", "INFY"].includes(q.label))
+    .slice(0, 3);
 
   return (
-    <div className="auth-card view-enter">
+    <div className="auth-card">
       {/* Logo */}
-      <div className="logo-section">
-        <div className="logo-mark">📈</div>
-        <div className="logo-text">TRADE<span>PULSE</span></div>
-        <div className="logo-badge">
-          <span className="pulse-dot" />
+      <div className="logo-row">
+        <div className="logo-gem">📈</div>
+        <div>
+          <div className="logo-name">TRADE<em>PULSE</em></div>
+          <div className="logo-tag">India's most trusted trading platform</div>
+        </div>
+        <div className="live-chip">
+          <span className="dot-blink" />
           LIVE
         </div>
       </div>
 
-      {/* Glass Panel */}
-      <div className="glass-panel">
+      {/* Trust bar */}
+      <div className="trust-bar">
+        {TRUST_STATS.map((t, i) => (
+          <div key={t.lbl} style={{ display: "flex", flex: 1, alignItems: "center" }}>
+            {i > 0 && <div className="trust-div" />}
+            <div className="trust-item" style={{ flex: 1 }}>
+              <div className="trust-val">{t.val}</div>
+              <div className="trust-lbl">{t.lbl}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Glass panel */}
+      <div className="glass-panel fade-in">
         {/* Tabs */}
         <div className="tab-row">
           <button className="tab-btn active">Sign In</button>
@@ -55,61 +75,80 @@ function Login({ onLoginSuccess, setShowLogin }) {
           </button>
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="alert alert-error">⚠ {error}</div>
-        )}
+        {error && <div className="alert alert-err">⚠ {error}</div>}
 
-        {/* Fields */}
         <div className="form-group">
           <label className="form-label">Account ID / Username</label>
-          <input
-            className="form-input"
-            type="text"
-            placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={handleKey}
-            autoComplete="username"
-          />
+          <div className="input-wrap">
+            <span className="input-icon">👤</span>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              autoComplete="username"
+            />
+          </div>
         </div>
 
         <div className="form-group">
-          <label className="form-label">Security PIN / Password</label>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={handleKey}
-            autoComplete="current-password"
-          />
+          <label className="form-label">Password / Security PIN</label>
+          <div className="input-wrap">
+            <span className="input-icon">🔒</span>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              autoComplete="current-password"
+            />
+          </div>
         </div>
 
         <button
-          className="submit-btn"
+          className="btn-primary"
           onClick={handleLogin}
           disabled={loading}
-          style={{ opacity: loading ? 0.7 : 1 }}
         >
-          {loading ? "Authenticating..." : "▶ Access Market"}
+          {loading ? (
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <span className="spinner" /> Authenticating…
+            </span>
+          ) : (
+            "▶ Access Market"
+          )}
         </button>
 
-        {/* Market Stats */}
-        <div className="stats-row">
-          {MARKET_STATS.map((s) => (
-            <div className="stat-chip" key={s.label}>
-              <div className={`stat-val ${s.up ? "up" : "down"}`}>
-                {s.up ? "▲" : "▼"} {s.val}
+        {/* Live market chips — real data from Yahoo Finance */}
+        {chips.length > 0 && (
+          <div className="mkt-row">
+            {chips.map((q) => (
+              <div className="mkt-chip" key={q.label}>
+                <div className={`mkt-val ${q.up ? "up" : "dn"}`}>
+                  {q.up ? "▲" : "▼"} {Math.abs(q.changePct)}%
+                </div>
+                <div className="mkt-lbl">{q.label}</div>
               </div>
-              <div className="stat-lbl">{s.label}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {/* Skeleton chips while loading */}
+        {chips.length === 0 && (
+          <div className="mkt-row">
+            {[1, 2, 3].map((i) => (
+              <div className="mkt-chip" key={i}>
+                <div className="skeleton" style={{ width: "60%", margin: "0 auto 6px" }} />
+                <div className="skeleton" style={{ width: "40%", margin: "0 auto" }} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-export default Login;
