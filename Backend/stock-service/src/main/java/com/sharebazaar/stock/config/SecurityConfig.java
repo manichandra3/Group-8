@@ -25,6 +25,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Anyone authenticated can view companies and shares
                         .requestMatchers(HttpMethod.GET, "/api/companies/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/shares/**").authenticated()

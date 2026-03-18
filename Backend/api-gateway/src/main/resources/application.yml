@@ -9,7 +9,9 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
             allowedMethods:
               - GET
               - POST
@@ -18,9 +20,10 @@ spring:
               - DELETE
               - OPTIONS
             allowedHeaders:
-              - Authorization
-              - Content-Type
               - "*"
+            exposedHeaders:
+              - "Authorization"
+              - "Content-Type"
             allowCredentials: true
             maxAge: 3600
       routes:
@@ -28,20 +31,10 @@ spring:
           uri: lb://auth-service
           predicates:
             - Path=/auth/**
-          filters:
-            - RemoveResponseHeader=Access-Control-Allow-Origin
-            - RemoveResponseHeader=Access-Control-Allow-Methods
-            - RemoveResponseHeader=Access-Control-Allow-Headers
-            - RemoveResponseHeader=Access-Control-Allow-Credentials
         - id: stock-service
           uri: lb://stock-service
           predicates:
             - Path=/api/companies/**,/api/shares/**
-          filters:
-            - RemoveResponseHeader=Access-Control-Allow-Origin
-            - RemoveResponseHeader=Access-Control-Allow-Methods
-            - RemoveResponseHeader=Access-Control-Allow-Headers
-            - RemoveResponseHeader=Access-Control-Allow-Credentials
 
 eureka:
   client:
