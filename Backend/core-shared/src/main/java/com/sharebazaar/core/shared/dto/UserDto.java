@@ -19,8 +19,6 @@ public class UserDto implements Serializable {
         this.role = role;
     }
 
-
-
     public Long getId() {
         return id;
     }

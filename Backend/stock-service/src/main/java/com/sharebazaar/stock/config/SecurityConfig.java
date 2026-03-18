@@ -1,12 +1,11 @@
-package com.sharebazaar.auth.config;
+package com.sharebazaar.stock.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -27,13 +26,22 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/login").permitAll()
+                        // Anyone authenticated can view companies and shares
+                        .requestMatchers(HttpMethod.GET, "/api/companies/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/shares/**").authenticated()
+                        // Only ADMIN can create, update, delete
+                        .requestMatchers(HttpMethod.POST, "/api/companies/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/companies/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/companies/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/companies/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/shares/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/shares/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/shares/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -44,7 +52,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
@@ -52,10 +60,5 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }
