@@ -89,3 +89,16 @@
 2026-03-18T13:12:44.063+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : The response status is 200
 2026-03-18T13:13:00.821+05:30  WARN 624649 --- [api-gateway] [or-http-epoll-4] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: stock-service
 2026-03-18T13:13:00.959+05:30  WARN 624649 --- [api-gateway] [or-http-epoll-5] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: stock-service
+2026-03-18T13:17:13.482+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:35:30.134+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:40:30.136+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:46:29.122+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:51:30.438+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:56:30.439+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:01:30.440+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:06:30.441+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:11:30.448+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:16:30.462+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:21:30.463+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:26:30.464+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:31:30.465+05:30  INFO 624649 --- [api-gateway] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration

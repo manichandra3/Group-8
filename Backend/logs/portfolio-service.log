@@ -98,3 +98,16 @@ This generated password is for development use only. Your security configuration
 2026-03-18T13:12:53.935+05:30  INFO 625298 --- [portfolio-service] [foReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_PORTFOLIO-SERVICE/archlinux:portfolio-service:8083 - registration status: 204
 2026-03-18T13:12:53.962+05:30  INFO 625298 --- [portfolio-service] [           main] c.s.p.PortfolioServiceApplication        : Started PortfolioServiceApplication in 8.178 seconds (process running for 8.837)
 2026-03-18T13:12:54.081+05:30  INFO 625298 --- [portfolio-service] [           main] c.s.portfolio.config.DataSeeder          : Stock data already exists, skipping seed
+2026-03-18T13:17:53.412+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:36:10.066+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:41:10.067+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:47:09.054+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:52:10.370+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T14:57:10.371+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:02:10.372+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:07:10.373+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:12:10.377+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:17:10.387+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:22:10.388+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:27:10.392+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T15:32:10.392+05:30  INFO 625298 --- [portfolio-service] [rap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
