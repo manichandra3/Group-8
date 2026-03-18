@@ -3,6 +3,7 @@ package com.sharebazaar.portfolio.controller;
 import com.sharebazaar.portfolio.dto.PortfolioRequest;
 import com.sharebazaar.portfolio.dto.PortfolioResponse;
 import com.sharebazaar.portfolio.service.PortfolioService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,9 +32,11 @@ public class PortfolioController {
     @PostMapping
     public ResponseEntity<PortfolioResponse> createPortfolio(
             @Valid @RequestBody PortfolioRequest request,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
         Long userId = Long.parseLong(authentication.getName());
-        PortfolioResponse response = portfolioService.createPortfolio(userId, request);
+        String userEmail = (String) httpRequest.getAttribute("userEmail");
+        PortfolioResponse response = portfolioService.createPortfolio(userId, userEmail, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

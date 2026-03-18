@@ -1,0 +1,91 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.sharebazaar:api-gateway >---------------------
+[INFO] Building api-gateway 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.4.3:run (default-cli) > test-compile @ api-gateway >>>
+[INFO] 
+[INFO] --- jacoco:0.8.12:prepare-agent (prepare-agent) @ api-gateway ---
+[INFO] argLine set to -javaagent:/home/manichandra/.m2/repository/org/jacoco/org.jacoco.agent/0.8.12/org.jacoco.agent-0.8.12-runtime.jar=destfile=/home/manichandra/developer/Group-8/Backend/api-gateway/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ api-gateway ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 0 resource from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ api-gateway ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ api-gateway ---
+[INFO] skip non existing resourceDirectory /home/manichandra/developer/Group-8/Backend/api-gateway/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ api-gateway ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:3.4.3:run (default-cli) < test-compile @ api-gateway <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.4.3:run (default-cli) @ api-gateway ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.3)
+
+2026-03-18T13:12:10.130+05:30  INFO 624649 --- [api-gateway] [           main] c.s.apigateway.ApiGatewayApplication     : Starting ApiGatewayApplication using Java 17.0.18 with PID 624649 (/home/manichandra/developer/Group-8/Backend/api-gateway/target/classes started by manichandra in /home/manichandra/developer/Group-8/Backend/api-gateway)
+2026-03-18T13:12:10.134+05:30  INFO 624649 --- [api-gateway] [           main] c.s.apigateway.ApiGatewayApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-03-18T13:12:11.608+05:30  INFO 624649 --- [api-gateway] [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=ca7f7e53-a847-30b9-9a91-9b15778e6855
+2026-03-18T13:12:12.680+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [After]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Before]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Between]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Cookie]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Header]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Host]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Method]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Path]
+2026-03-18T13:12:12.681+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Query]
+2026-03-18T13:12:12.682+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [ReadBody]
+2026-03-18T13:12:12.682+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [RemoteAddr]
+2026-03-18T13:12:12.682+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2026-03-18T13:12:12.682+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [Weight]
+2026-03-18T13:12:12.682+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.g.r.RouteDefinitionRouteLocator    : Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2026-03-18T13:12:13.063+05:30  INFO 624649 --- [api-gateway] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-03-18T13:12:13.338+05:30  INFO 624649 --- [api-gateway] [           main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2026-03-18T13:12:13.373+05:30  WARN 624649 --- [api-gateway] [           main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-03-18T13:12:13.438+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-03-18T13:12:13.463+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-03-18T13:12:13.468+05:30  INFO 624649 --- [api-gateway] [           main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T13:12:13.478+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-03-18T13:12:13.479+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-03-18T13:12:13.479+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-03-18T13:12:13.479+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-03-18T13:12:13.479+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-03-18T13:12:13.479+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-03-18T13:12:13.479+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-03-18T13:12:14.028+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-03-18T13:12:14.030+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-03-18T13:12:14.032+05:30  INFO 624649 --- [api-gateway] [           main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-03-18T13:12:14.035+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1773819734034 with initial instances count: 0
+2026-03-18T13:12:14.039+05:30  INFO 624649 --- [api-gateway] [           main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application API-GATEWAY with eureka with status UP
+2026-03-18T13:12:14.040+05:30  INFO 624649 --- [api-gateway] [           main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1773819734039, current=UP, previous=STARTING]
+2026-03-18T13:12:14.042+05:30  INFO 624649 --- [api-gateway] [foReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/archlinux:api-gateway:8080: registering service...
+2026-03-18T13:12:14.229+05:30  INFO 624649 --- [api-gateway] [           main] o.s.b.web.embedded.netty.NettyWebServer  : Netty started on port 8080 (http)
+2026-03-18T13:12:14.232+05:30  INFO 624649 --- [api-gateway] [foReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_API-GATEWAY/archlinux:api-gateway:8080 - registration status: 204
+2026-03-18T13:12:14.232+05:30  INFO 624649 --- [api-gateway] [           main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8080
+2026-03-18T13:12:14.290+05:30  INFO 624649 --- [api-gateway] [           main] c.s.apigateway.ApiGatewayApplication     : Started ApiGatewayApplication in 4.818 seconds (process running for 5.455)
+2026-03-18T13:12:44.030+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-03-18T13:12:44.031+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-03-18T13:12:44.031+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-03-18T13:12:44.031+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-03-18T13:12:44.031+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-03-18T13:12:44.032+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2026-03-18T13:12:44.032+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-03-18T13:12:44.063+05:30  INFO 624649 --- [api-gateway] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-03-18T13:13:00.821+05:30  WARN 624649 --- [api-gateway] [or-http-epoll-4] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: stock-service
+2026-03-18T13:13:00.959+05:30  WARN 624649 --- [api-gateway] [or-http-epoll-5] o.s.c.l.core.RoundRobinLoadBalancer      : No servers available for service: stock-service

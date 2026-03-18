@@ -1,0 +1,158 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.sharebazaar:auth-service >--------------------
+[INFO] Building auth-service 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.4.3:run (default-cli) > test-compile @ auth-service >>>
+[INFO] 
+[INFO] --- jacoco:0.8.12:prepare-agent (prepare-agent) @ auth-service ---
+[INFO] argLine set to -javaagent:/home/manichandra/.m2/repository/org/jacoco/org.jacoco.agent/0.8.12/org.jacoco.agent-0.8.12-runtime.jar=destfile=/home/manichandra/developer/Group-8/Backend/auth-service/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ auth-service ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 0 resource from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ auth-service ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ auth-service ---
+[INFO] skip non existing resourceDirectory /home/manichandra/developer/Group-8/Backend/auth-service/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ auth-service ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:3.4.3:run (default-cli) < test-compile @ auth-service <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.4.3:run (default-cli) @ auth-service ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.3)
+
+2026-03-18T13:12:22.168+05:30  INFO 624874 --- [auth-service] [           main] c.s.auth.AuthServiceApplication          : Starting AuthServiceApplication using Java 17.0.18 with PID 624874 (/home/manichandra/developer/Group-8/Backend/auth-service/target/classes started by manichandra in /home/manichandra/developer/Group-8/Backend/auth-service)
+2026-03-18T13:12:22.171+05:30  INFO 624874 --- [auth-service] [           main] c.s.auth.AuthServiceApplication          : No active profile set, falling back to 1 default profile: "default"
+2026-03-18T13:12:23.203+05:30  INFO 624874 --- [auth-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-18T13:12:23.404+05:30  INFO 624874 --- [auth-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 187 ms. Found 1 JPA repository interface.
+2026-03-18T13:12:23.703+05:30  INFO 624874 --- [auth-service] [           main] o.s.cloud.context.scope.GenericScope     : BeanFactory id=16bd3a58-b610-3a20-b6a5-a4320f7778e4
+2026-03-18T13:12:24.135+05:30  INFO 624874 --- [auth-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8081 (http)
+2026-03-18T13:12:24.156+05:30  INFO 624874 --- [auth-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-18T13:12:24.156+05:30  INFO 624874 --- [auth-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.36]
+2026-03-18T13:12:24.224+05:30  INFO 624874 --- [auth-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-03-18T13:12:24.226+05:30  INFO 624874 --- [auth-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1973 ms
+2026-03-18T13:12:24.441+05:30  INFO 624874 --- [auth-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-03-18T13:12:24.490+05:30  INFO 624874 --- [auth-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.8.Final
+2026-03-18T13:12:24.527+05:30  INFO 624874 --- [auth-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-03-18T13:12:24.821+05:30  INFO 624874 --- [auth-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-18T13:12:24.853+05:30  INFO 624874 --- [auth-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-18T13:12:24.962+05:30  INFO 624874 --- [auth-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1e5b33e5
+2026-03-18T13:12:24.963+05:30  INFO 624874 --- [auth-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-18T13:12:24.996+05:30  WARN 624874 --- [auth-service] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-18T13:12:25.025+05:30  INFO 624874 --- [auth-service] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 18.2
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-18T13:12:25.949+05:30  INFO 624874 --- [auth-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-18T13:12:26.010+05:30  INFO 624874 --- [auth-service] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-18T13:12:26.438+05:30  WARN 624874 --- [auth-service] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-18T13:12:26.505+05:30  WARN 624874 --- [auth-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 1a7ead57-70f5-42be-96f7-b25deff08456
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-03-18T13:12:26.513+05:30  INFO 624874 --- [auth-service] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-03-18T13:12:27.204+05:30  INFO 624874 --- [auth-service] [           main] DiscoveryClientOptionalArgsConfiguration : Eureka HTTP Client uses RestTemplate.
+2026-03-18T13:12:27.248+05:30  WARN 624874 --- [auth-service] [           main] iguration$LoadBalancerCaffeineWarnLogger : Spring Cloud LoadBalancer is currently working with the default cache. While this cache implementation is useful for development and tests, it's recommended to use Caffeine cache in production.You can switch to using Caffeine cache, by adding it and org.springframework.cache.caffeine.CaffeineCacheManager to the classpath.
+2026-03-18T13:12:27.279+05:30  INFO 624874 --- [auth-service] [           main] o.s.c.n.eureka.InstanceInfoFactory       : Setting initial instance status as: STARTING
+2026-03-18T13:12:27.310+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Initializing Eureka in region us-east-1
+2026-03-18T13:12:27.314+05:30  INFO 624874 --- [auth-service] [           main] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Application version is -1: true
+2026-03-18T13:12:27.323+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-03-18T13:12:27.775+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-03-18T13:12:27.777+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Starting heartbeat executor: renew interval is: 30
+2026-03-18T13:12:27.780+05:30  INFO 624874 --- [auth-service] [           main] c.n.discovery.InstanceInfoReplicator     : InstanceInfoReplicator onDemand update allowed rate per min is 4
+2026-03-18T13:12:27.784+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Discovery Client initialized at timestamp 1773819747782 with initial instances count: 0
+2026-03-18T13:12:27.789+05:30  INFO 624874 --- [auth-service] [           main] o.s.c.n.e.s.EurekaServiceRegistry        : Registering application AUTH-SERVICE with eureka with status UP
+2026-03-18T13:12:27.790+05:30  INFO 624874 --- [auth-service] [           main] com.netflix.discovery.DiscoveryClient    : Saw local status change event StatusChangeEvent [timestamp=1773819747790, current=UP, previous=STARTING]
+2026-03-18T13:12:27.792+05:30  INFO 624874 --- [auth-service] [foReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUTH-SERVICE/archlinux:auth-service:8081: registering service...
+2026-03-18T13:12:27.814+05:30  INFO 624874 --- [auth-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8081 (http) with context path '/'
+2026-03-18T13:12:27.815+05:30  INFO 624874 --- [auth-service] [           main] .s.c.n.e.s.EurekaAutoServiceRegistration : Updating port to 8081
+2026-03-18T13:12:27.844+05:30  INFO 624874 --- [auth-service] [           main] c.s.auth.AuthServiceApplication          : Started AuthServiceApplication in 6.337 seconds (process running for 7.008)
+2026-03-18T13:12:27.853+05:30  INFO 624874 --- [auth-service] [foReplicator-%d] com.netflix.discovery.DiscoveryClient    : DiscoveryClient_AUTH-SERVICE/archlinux:auth-service:8081 - registration status: 204
+2026-03-18T13:12:57.778+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Disable delta property : false
+2026-03-18T13:12:57.779+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Single vip registry refresh property : null
+2026-03-18T13:12:57.779+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Force full registry fetch : false
+2026-03-18T13:12:57.779+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Application is null : false
+2026-03-18T13:12:57.779+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Registered Applications size is zero : true
+2026-03-18T13:12:57.779+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Application version is -1: false
+2026-03-18T13:12:57.780+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : Getting all instance registry info from the eureka server
+2026-03-18T13:12:57.806+05:30  INFO 624874 --- [auth-service] [reshExecutor-%d] com.netflix.discovery.DiscoveryClient    : The response status is 200
+2026-03-18T13:13:01.085+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-18T13:13:01.085+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-18T13:13:01.087+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-03-18T13:13:01.203+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-2] c.sharebazaar.auth.service.AuthService   : Login attempt for email: test.portfolio@example.com
+Hibernate: 
+    select
+        u1_0.id,
+        u1_0.created_at,
+        u1_0.email,
+        u1_0.enabled,
+        u1_0.password,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.username 
+    from
+        users u1_0 
+    where
+        u1_0.email=?
+2026-03-18T13:13:01.601+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-2] c.sharebazaar.auth.service.AuthService   : User logged in successfully: id=3
+2026-03-18T13:13:28.602+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-3] c.sharebazaar.auth.service.AuthService   : Login attempt for email: admin@gmail.com
+Hibernate: 
+    select
+        u1_0.id,
+        u1_0.created_at,
+        u1_0.email,
+        u1_0.enabled,
+        u1_0.password,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.username 
+    from
+        users u1_0 
+    where
+        u1_0.email=?
+2026-03-18T13:13:29.028+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-3] c.sharebazaar.auth.service.AuthService   : User logged in successfully: id=1
+2026-03-18T13:13:56.325+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-4] c.sharebazaar.auth.service.AuthService   : Login attempt for email: admin@gmail.com
+Hibernate: 
+    select
+        u1_0.id,
+        u1_0.created_at,
+        u1_0.email,
+        u1_0.enabled,
+        u1_0.password,
+        u1_0.role,
+        u1_0.updated_at,
+        u1_0.username 
+    from
+        users u1_0 
+    where
+        u1_0.email=?
+2026-03-18T13:13:56.855+05:30  INFO 624874 --- [auth-service] [nio-8081-exec-4] c.sharebazaar.auth.service.AuthService   : User logged in successfully: id=1

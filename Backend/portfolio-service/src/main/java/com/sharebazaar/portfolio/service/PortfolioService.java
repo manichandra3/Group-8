@@ -31,10 +31,13 @@ public class PortfolioService {
     }
 
     @Transactional
-    public PortfolioResponse createPortfolio(Long userId, PortfolioRequest request) {
+    public PortfolioResponse createPortfolio(Long userId, String userEmail, PortfolioRequest request) {
         // Get or create customer
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
+            .orElseGet(() -> {
+                Customer newCustomer = new Customer(userId, userEmail, userEmail);
+                return customerRepository.save(newCustomer);
+            });
 
         Portfolio portfolio = new Portfolio(customer, request.getName());
         portfolio.setDescription(request.getDescription());

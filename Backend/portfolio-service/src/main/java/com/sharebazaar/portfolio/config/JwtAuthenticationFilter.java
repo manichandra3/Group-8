@@ -42,19 +42,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwtService.isTokenValid(token)) {
             Long userId = jwtService.extractUserId(token);
+            String email = jwtService.extractEmail(token);
             String role = jwtService.extractRole(token);
 
             List<SimpleGrantedAuthority> authorities = List.of(
                     new SimpleGrantedAuthority("ROLE_" + role)
             );
 
-            // Use userId as the principal name
+            // Use userId as the principal name, store email and role in details
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userId.toString(), null, authorities);
+            
+            // Store email in request attribute for use in services
+            request.setAttribute("userEmail", email);
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Authenticated user ID: {} with role: {}", userId, role);
+            log.debug("Authenticated user ID: {} ({})", userId, email);
         }
 
         filterChain.doFilter(request, response);

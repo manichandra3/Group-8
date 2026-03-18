@@ -7,55 +7,32 @@ spring:
   cloud:
     gateway:
       globalcors:
+        add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
-            allowedOrigins:
-              - "http://localhost:5173"
-              - "http://localhost:3000"
-              - "http://localhost:5174"
+            allowedOriginPatterns:
+              - "*"
             allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-              - OPTIONS
+              - "*"
             allowedHeaders:
-              - Authorization
-              - Content-Type
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
+              - "*"
+            exposedHeaders:
+              - "*"
+            allowCredentials: false
             maxAge: 3600
       routes:
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/auth/**
-          filters:
-            - RemoveResponseHeader=Access-Control-Allow-Origin
-            - RemoveResponseHeader=Access-Control-Allow-Methods
-            - RemoveResponseHeader=Access-Control-Allow-Headers
-            - RemoveResponseHeader=Access-Control-Allow-Credentials
         - id: stock-service
           uri: lb://stock-service
           predicates:
             - Path=/api/companies/**,/api/shares/**
-          filters:
-            - RemoveResponseHeader=Access-Control-Allow-Origin
-            - RemoveResponseHeader=Access-Control-Allow-Methods
-            - RemoveResponseHeader=Access-Control-Allow-Headers
-            - RemoveResponseHeader=Access-Control-Allow-Credentials
         - id: portfolio-service
           uri: lb://portfolio-service
           predicates:
             - Path=/api/portfolios/**,/api/transactions/**
-          filters:
-            - RemoveResponseHeader=Access-Control-Allow-Origin
-            - RemoveResponseHeader=Access-Control-Allow-Methods
-            - RemoveResponseHeader=Access-Control-Allow-Headers
-            - RemoveResponseHeader=Access-Control-Allow-Credentials
 
 eureka:
   client:
