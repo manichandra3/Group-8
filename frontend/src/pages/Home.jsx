@@ -35,7 +35,7 @@ function InteractiveChart({ history = [], open, high, low, width = 700, height =
 
   if (history.length < 2) {
     return (
-      <div style={{ width, height, display:"flex", alignItems:"center", justifyContent:"center", color:"#1a2540", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
+      <div style={{ width, height, display:"flex", alignItems:"center", justifyContent:"center", color: "#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
         AWAITING DATA…
       </div>
     );
@@ -179,7 +179,7 @@ function InteractiveChart({ history = [], open, high, low, width = 700, height =
           <div style={{ position:"absolute", top:Math.max(4,hover.y-52), left:flip?hover.x-148:hover.x+10, background:"#0a1525", border:`1px solid ${c}55`, borderRadius:8, padding:"9px 14px", pointerEvents:"none", zIndex:10, minWidth:130, boxShadow:"0 4px 24px rgba(0,0,0,0.6)" }}>
             <div style={{ fontSize:16, fontWeight:800, color:c, fontFamily:"'Plus Jakarta Sans',sans-serif", letterSpacing:-0.5 }}>₹{fmt(hover.price)}</div>
             <div style={{ fontSize:10, color:hUp?teal:red, fontFamily:"'DM Mono',monospace", marginTop:2 }}>{hUp?"▲ +":"▼ "}{hover.pct.toFixed(3)}%</div>
-            <div style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", marginTop:4, letterSpacing:1 }}>T-{history.length-1-hover.idx}s ago</div>
+            <div style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", marginTop:4, letterSpacing:1 }}>T-{history.length-1-hover.idx}s ago</div>
           </div>
         );
       })()}
@@ -193,7 +193,7 @@ function InteractiveChart({ history = [], open, high, low, width = 700, height =
 function CandleChart({ candles = [], width = 700, height = 160 }) {
   const [hover, setHover] = useState(null);
   if (!candles.length) return (
-    <div style={{ width, height, display:"flex", alignItems:"center", justifyContent:"center", color:"#1a2540", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
+    <div style={{ width, height, display:"flex", alignItems:"center", justifyContent:"center", color: "#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
       NO CANDLE DATA
     </div>
   );
@@ -256,10 +256,10 @@ function CandleChart({ candles = [], width = 700, height = 160 }) {
         const flip = hover.cx > width * 0.6;
         return (
           <div style={{ position:"absolute", top:8, left:flip ? hover.cx-180 : hover.cx+10, background:"#0a1525", border:`1px solid ${c}55`, borderRadius:8, padding:"10px 14px", pointerEvents:"none", zIndex:10, minWidth:160, boxShadow:"0 4px 20px rgba(0,0,0,0.6)" }}>
-            <div style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:2, marginBottom:6 }}>{fmtTime(hover.c.startTime)} · 1m</div>
+            <div style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2, marginBottom:6 }}>{fmtTime(hover.c.startTime)} · 1m</div>
             {[["O", hover.c.open, "#c8d4f0"], ["H", hover.c.high, teal], ["L", hover.c.low, red], ["C", hover.c.close, c]].map(([lbl, val, col]) => (
               <div key={lbl} style={{ display:"flex", justifyContent:"space-between", gap:16, marginBottom:2 }}>
-                <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace" }}>{lbl}</span>
+                <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace" }}>{lbl}</span>
                 <span style={{ fontSize:12, fontWeight:600, color:col, fontFamily:"'DM Mono',monospace" }}>₹{fmt(val)}</span>
               </div>
             ))}
@@ -312,7 +312,7 @@ function RsiGauge({ rsi }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function PriceHistoryTable({ rows = [] }) {
   if (!rows.length) return (
-    <div style={{ padding:"20px", textAlign:"center", color:"#1a2540", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>NO HISTORY</div>
+    <div style={{ padding:"20px", textAlign:"center", color: "#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>NO HISTORY</div>
   );
   const last20 = [...rows].reverse().slice(0, 20);
   return (
@@ -321,7 +321,7 @@ function PriceHistoryTable({ rows = [] }) {
         <thead>
           <tr style={{ borderBottom:"1px solid #0e1828", position:"sticky", top:0, background:"#060d1a" }}>
             {["Time","Price","Δ"].map(h => (
-              <th key={h} style={{ padding:"7px 12px", fontSize:9, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", textAlign:h==="Price"||h==="Δ"?"right":"left" }}>{h}</th>
+              <th key={h} style={{ padding:"7px 12px", fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", textAlign:h==="Price"||h==="Δ"?"right":"left" }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -334,8 +334,8 @@ function PriceHistoryTable({ rows = [] }) {
               <tr key={row.id || i} style={{ borderBottom:"1px solid rgba(255,255,255,0.02)" }}
                 onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.02)"}
                 onMouseLeave={e => e.currentTarget.style.background="transparent"}>
-                <td style={{ padding:"7px 12px", fontSize:10, color:"#3a4a6a", fontFamily:"'DM Mono',monospace" }}>{fmtTime(row.timestamp)}</td>
-                <td style={{ padding:"7px 12px", fontSize:12, fontWeight:600, color:"#c8d4f0", fontFamily:"'DM Mono',monospace", textAlign:"right" }}>₹{fmt(row.price)}</td>
+                <td style={{ padding:"7px 12px", fontSize:10, color: "#3a4a6a", fontFamily:"'DM Mono',monospace" }}>{fmtTime(row.timestamp)}</td>
+                <td style={{ padding:"7px 12px", fontSize:12, fontWeight:600, color: "#c8d4f0", fontFamily:"'DM Mono',monospace", textAlign:"right" }}>₹{fmt(row.price)}</td>
                 <td style={{ padding:"7px 12px", fontSize:10, color:up?teal:red, fontFamily:"'DM Mono',monospace", textAlign:"right" }}>
                   {prev ? `${up?"+":""}${delta.toFixed(2)}` : "—"}
                 </td>
@@ -404,15 +404,15 @@ function OrderPanel({ company, livePrice }) {
 
       {/* Live price display */}
       <div style={{ background:"#060d1a", borderRadius:8, padding:"10px 14px", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>MARKET PRICE</span>
+        <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>MARKET PRICE</span>
         <span style={{ fontSize:16, fontWeight:800, color:c, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>₹{fmt(livePrice)}</span>
       </div>
 
       {/* Qty */}
       <div style={{ marginBottom:10 }}>
-        <label style={{ fontSize:9, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Quantity</label>
+        <label style={{ fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Quantity</label>
         <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)}
-          style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
+          style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color: "#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
           onFocus={e => e.target.style.borderColor=`${c}55`}
           onBlur={e  => e.target.style.borderColor="#0e1828"}/>
       </div>
@@ -420,9 +420,9 @@ function OrderPanel({ company, livePrice }) {
       {/* Limit price */}
       {(orderType === "LIMIT" || orderType === "GTT") && (
         <div style={{ marginBottom:10 }}>
-          <label style={{ fontSize:9, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Limit Price (₹)</label>
+          <label style={{ fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Limit Price (₹)</label>
           <input type="number" value={limitPx} onChange={e => setLimitPx(e.target.value)} placeholder={`e.g. ${fmt(livePrice,0)}`}
-            style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
+            style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color: "#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
             onFocus={e => e.target.style.borderColor=`${c}55`}
             onBlur={e  => e.target.style.borderColor="#0e1828"}/>
         </div>
@@ -431,9 +431,9 @@ function OrderPanel({ company, livePrice }) {
       {/* Trigger price */}
       {orderType === "GTT" && (
         <div style={{ marginBottom:10 }}>
-          <label style={{ fontSize:9, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Trigger Price (₹)</label>
+          <label style={{ fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Trigger Price (₹)</label>
           <input type="number" value={triggerPx} onChange={e => setTriggerPx(e.target.value)} placeholder="Trigger at…"
-            style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
+            style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color: "#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
             onFocus={e => e.target.style.borderColor=`${c}55`}
             onBlur={e  => e.target.style.borderColor="#0e1828"}/>
         </div>
@@ -442,8 +442,8 @@ function OrderPanel({ company, livePrice }) {
       {/* Estimated total */}
       {qty && parseInt(qty) > 0 && (
         <div style={{ background:"#060d1a", borderRadius:7, padding:"8px 12px", marginBottom:12, display:"flex", justifyContent:"space-between" }}>
-          <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>EST. TOTAL</span>
-          <span style={{ fontSize:12, color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontWeight:600 }}>
+          <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>EST. TOTAL</span>
+          <span style={{ fontSize:12, color: "#c8d4f0", fontFamily:"'DM Mono',monospace", fontWeight:600 }}>
             ₹{fmt((parseFloat(limitPx || livePrice) * parseInt(qty || 0)))}
           </span>
         </div>
@@ -494,7 +494,7 @@ function ChartInsights({ history = [], open, high, low, price, dayChangePct }) {
     { label:"Trend",         val:`${trendStr}% ${trendDir}`,           color:trendDir==="BULLISH"?teal:red },
     { label:"Avg Tick Δ",    val:`${avgChg>=0?"+":""}${avgChg.toFixed(3)}%`,    color:avgChg>=0?teal:red },
     { label:"Circuit Left",  val:`${(20-Math.abs(dayChangePct)).toFixed(2)}%`,  color:(20-Math.abs(dayChangePct))<5?red:(20-Math.abs(dayChangePct))<10?amber:teal },
-    { label:"Ticks",         val:`${n}`,                               color:"#c8d4f0" },
+    { label:"Ticks",         val:`${n}`,                               color: "#c8d4f0" },
     { label:"Day High",      val:`₹${fmt(high)}`,                      color:teal },
     { label:"Day Low",       val:`₹${fmt(low)}`,                       color:red },
     { label:"vs Open",       val:`${price>=open?"+":""}${(((price-open)/open)*100).toFixed(3)}%`, color:price>=open?teal:red },
@@ -504,21 +504,21 @@ function ChartInsights({ history = [], open, high, low, price, dayChangePct }) {
     <div style={{ padding:"16px 28px 0" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
         <div style={{ width:3, height:14, background:blue, borderRadius:2 }}/>
-        <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Chart Analytics</span>
+        <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Chart Analytics</span>
         <div style={{ marginLeft:"auto", background:`${sigColor}18`, border:`1px solid ${sigColor}44`, color:sigColor, fontSize:9, padding:"3px 10px", borderRadius:4, fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>{signal}</div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:2 }}>
         {stats.map((s,i) => (
           <div key={s.label} style={{ padding:"9px 11px", background:i%2===0?"#060d1a":"rgba(255,255,255,0.01)", borderRadius:6 }}>
-            <div style={{ fontSize:8, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:3 }}>{s.label}</div>
+            <div style={{ fontSize:8, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:3 }}>{s.label}</div>
             <div style={{ fontSize:11, fontWeight:600, color:s.color, fontFamily:"'DM Mono',monospace" }}>{s.val}</div>
           </div>
         ))}
       </div>
       <div style={{ marginTop:8, padding:"9px 12px", background:"#060d1a", borderRadius:8 }}>
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-          <span style={{ fontSize:8, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Bull / Bear Balance</span>
-          <span style={{ fontSize:9, color:"#4a5a7a", fontFamily:"'DM Mono',monospace" }}>{ups}↑ · {downs}↓</span>
+          <span style={{ fontSize:8, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Bull / Bear Balance</span>
+          <span style={{ fontSize:9, color: "#4a5a7a", fontFamily:"'DM Mono',monospace" }}>{ups}↑ · {downs}↓</span>
         </div>
         <div style={{ height:4, background:"rgba(255,90,106,0.2)", borderRadius:2, overflow:"hidden" }}>
           <div style={{ height:"100%", width:`${(ups/(ups+downs||1))*100}%`, background:`linear-gradient(90deg,${teal},${teal}aa)`, borderRadius:2, transition:"width 0.5s" }}/>
@@ -543,7 +543,7 @@ function LiveSparkline({ history = [], width = 80, height = 32 }) {
   }).join(" ");
   const last = pts.split(" ").pop().split(",");
   const area = `${pts} ${width},${height} 0,${height}`;
-  const uid  = `sp${width}x${height}x${history[0]}x${history[history.length-1]}`;
+  const uid  = `sp${width}x${height}`;
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display:"block", flexShrink:0 }}>
       <defs>
@@ -597,8 +597,8 @@ function LiveCompanyRow({ company, liveData, onClick }) {
             {company.name.substring(0,3).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:12, fontWeight:600, color:"#c8d4f0", letterSpacing:1 }}>{company.name}</div>
-            <div style={{ fontSize:10, color:"#2a3550", marginTop:1 }}>ID #{company.id}</div>
+            <div style={{ fontFamily:"'DM Mono',monospace", fontSize:12, fontWeight:600, color: "#c8d4f0", letterSpacing:1 }}>{company.name}</div>
+            <div style={{ fontSize:10, color: "#5a6a8a", marginTop:1 }}>ID #{company.id}</div>
           </div>
         </div>
       </td>
@@ -613,7 +613,7 @@ function LiveCompanyRow({ company, liveData, onClick }) {
         </div>
       </td>
       <td style={{ padding:"12px 16px", borderBottom:"1px solid #090f1e", textAlign:"right" }}>
-        <div style={{ fontSize:12, color:"#6a7a9a", fontFamily:"'DM Mono',monospace" }}>₹{fmt(open)}</div>
+        <div style={{ fontSize:12, color: "#6a7a9a", fontFamily:"'DM Mono',monospace" }}>₹{fmt(open)}</div>
       </td>
       <td style={{ padding:"12px 16px", borderBottom:"1px solid #090f1e", textAlign:"right" }}>
         <div style={{ fontSize:12, color:teal, fontFamily:"'DM Mono',monospace" }}>₹{fmt(high)}</div>
@@ -631,9 +631,7 @@ function LiveCompanyRow({ company, liveData, onClick }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // LIVE DETAIL MODAL  — fully integrated with all 8083 endpoints
 // ─────────────────────────────────────────────────────────────────────────────
-function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose }) {
-  // Always read the freshest data from liveMap; fall back to the snapshot passed at open time
-  const liveData = liveMap[company.id] ?? initialLiveData;
+function LiveDetailModal({ company, liveData, onClose }) {
   const { price, open, high, low, dayChangePct, tickChangePct, history } = liveData;
   const up       = dayChangePct >= 0;
   const color    = up ? teal : red;
@@ -686,7 +684,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
 
         {/* Close */}
         <button onClick={onClose}
-          style={{ position:"absolute", top:16, right:18, background:"rgba(255,255,255,0.04)", border:"1px solid #192030", color:"#4a5a7a", width:32, height:32, borderRadius:8, cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}
+          style={{ position:"absolute", top:16, right:18, background:"rgba(255,255,255,0.04)", border:"1px solid #192030", color: "#4a5a7a", width:32, height:32, borderRadius:8, cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}
           onMouseEnter={e => { e.currentTarget.style.color="#eef0f8"; e.currentTarget.style.borderColor="#3a4a6a"; }}
           onMouseLeave={e => { e.currentTarget.style.color="#4a5a7a"; e.currentTarget.style.borderColor="#192030"; }}>✕</button>
 
@@ -704,7 +702,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
                 </span>
                 <CircuitBadge dayPct={dayChangePct}/>
               </div>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:14, fontWeight:600, color:"#6a7a9a" }}>
+              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:14, fontWeight:600, color: "#6a7a9a" }}>
                 {company.name} · NSE · ID #{company.id}
               </div>
             </div>
@@ -716,7 +714,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
                 <span style={{ background:`${color}18`, border:`1px solid ${color}33`, color, padding:"4px 12px", borderRadius:20, fontSize:12, fontFamily:"'DM Mono',monospace", fontWeight:600 }}>
                   {up?"+":""}{dayChangePct.toFixed(2)}% day
                 </span>
-                <span style={{ background:"rgba(255,255,255,0.04)", border:"1px solid #192030", color:"#3a4a6a", padding:"4px 10px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace" }}>
+                <span style={{ background:"rgba(255,255,255,0.04)", border:"1px solid #192030", color: "#3a4a6a", padding:"4px 10px", borderRadius:20, fontSize:11, fontFamily:"'DM Mono',monospace" }}>
                   {tickChangePct>=0?"+":""}{tickChangePct.toFixed(2)}% tick
                 </span>
               </div>
@@ -731,7 +729,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
               <span style={{ fontSize:10, color:red,  fontFamily:"'DM Mono',monospace" }}>L ₹{fmt(low)}</span>
-              <span style={{ fontSize:9,  color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>DAY RANGE</span>
+              <span style={{ fontSize:9,  color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>DAY RANGE</span>
               <span style={{ fontSize:10, color:teal, fontFamily:"'DM Mono',monospace" }}>H ₹{fmt(high)}</span>
             </div>
           </div>
@@ -743,7 +741,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
             <div style={{ flex:1, display:"flex", alignItems:"center", gap:14 }}>
               {/* MA badge */}
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>MA(5)</span>
+                <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>MA(5)</span>
                 <span style={{ fontSize:13, fontWeight:700, color: price >= indicators.MovingAverage ? teal : red, fontFamily:"'DM Mono',monospace" }}>
                   ₹{fmt(indicators.MovingAverage)}
                 </span>
@@ -754,7 +752,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
               <div style={{ width:1, height:16, background:"#0e1828" }}/>
               {/* RSI badge */}
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>RSI(14)</span>
+                <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>RSI(14)</span>
                 <span style={{ fontSize:13, fontWeight:700, color: indicators.RSI >= 70 ? red : indicators.RSI <= 30 ? teal : "#c8d4f0", fontFamily:"'DM Mono',monospace" }}>
                   {indicators.RSI.toFixed(1)}
                 </span>
@@ -770,7 +768,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
         <div style={{ display:"flex", gap:0, borderBottom:"1px solid #0e1828" }}>
           {views.map(v => (
             <button key={v.id} onClick={() => setActiveView(v.id)}
-              style={{ flex:1, padding:"11px", border:"none", borderBottom:`2px solid ${activeView===v.id?color:"transparent"}`, background:"transparent", color:activeView===v.id?color:"#2a3550", fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:2, textTransform:"uppercase", cursor:"pointer", transition:"all 0.15s" }}>
+              style={{ flex:1, padding:"11px", border:"none", borderBottom:`2px solid ${activeView===v.id?color:"transparent"}`, background:"transparent", color:activeView===v.id?color: "#5a6a8a", fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:2, textTransform:"uppercase", cursor:"pointer", transition:"all 0.15s" }}>
               {v.label}
             </button>
           ))}
@@ -781,12 +779,12 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
           <>
             <div ref={chartContainerRef} style={{ padding:"12px 8px 0", background:"#060d1a", borderBottom:"1px solid #0e1828" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 20px 8px" }}>
-                <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Price Chart · Hover to inspect</span>
+                <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Price Chart · Hover to inspect</span>
                 <div style={{ display:"flex", gap:14 }}>
                   {[{dot:amber,label:"Open"},{dot:color,label:up?"Gain":"Loss"}].map(item=>(
                     <div key={item.label} style={{ display:"flex", alignItems:"center", gap:5 }}>
                       <div style={{ width:8, height:2, background:item.dot, borderRadius:1 }}/>
-                      <span style={{ fontSize:8, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>{item.label}</span>
+                      <span style={{ fontSize:8, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>{item.label}</span>
                     </div>
                   ))}
                 </div>
@@ -797,14 +795,14 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
             {/* Circuit bar */}
             <div style={{ margin:"12px 28px 0", background:"#060d1a", borderRadius:10, padding:"11px 16px", border:"1px solid #0e1828" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Daily Circuit Usage</span>
+                <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Daily Circuit Usage</span>
                 <span style={{ fontSize:10, color:Math.abs(dayChangePct)>=15?amber:"#4a5a7a", fontFamily:"'DM Mono',monospace" }}>{Math.abs(dayChangePct).toFixed(2)}% / 20.00%</span>
               </div>
               <div style={{ height:5, background:"rgba(255,255,255,0.05)", borderRadius:3 }}>
                 <div style={{ width:`${Math.min(Math.abs(dayChangePct)/20*100,100)}%`, height:"100%", background:`linear-gradient(90deg,${teal},${Math.abs(dayChangePct)>=15?amber:teal},${Math.abs(dayChangePct)>=19.5?red:teal})`, borderRadius:3, transition:"width 0.5s" }}/>
               </div>
               <div style={{ display:"flex", justifyContent:"space-between", marginTop:3 }}>
-                {[5,10,15,20].map(p=><span key={p} style={{ fontSize:8, color:"#1a2540", fontFamily:"'DM Mono',monospace" }}>{p}%</span>)}
+                {[5,10,15,20].map(p=><span key={p} style={{ fontSize:8, color: "#4a5a7a", fontFamily:"'DM Mono',monospace" }}>{p}%</span>)}
               </div>
             </div>
 
@@ -826,7 +824,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
                   { label:"Interval",     val:"1 second" },
                 ].map((s,i)=>(
                   <div key={s.label} style={{ padding:"9px 11px", background:i%2===0?"#060d1a":"transparent", borderRadius:6 }}>
-                    <div style={{ fontSize:8, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:3 }}>{s.label}</div>
+                    <div style={{ fontSize:8, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:3 }}>{s.label}</div>
                     <div style={{ fontSize:11, fontWeight:600, fontFamily:"'DM Mono',monospace", color:s.hi?teal:s.lo?red:"#c8d4f0" }}>{s.val}</div>
                   </div>
                 ))}
@@ -842,8 +840,8 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
           <div style={{ padding:"16px 28px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
               <div style={{ width:3, height:14, background:amber, borderRadius:2 }}/>
-              <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>1-Minute OHLC Candles</span>
-              <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace" }}>({candles.length} bars)</span>
+              <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>1-Minute OHLC Candles</span>
+              <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace" }}>({candles.length} bars)</span>
             </div>
             <div style={{ background:"#060d1a", borderRadius:12, padding:"12px 8px 8px", border:"1px solid #0e1828" }}>
               <CandleChart candles={candles} width={chartW || 820} height={200}/>
@@ -853,11 +851,11 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
             {indicators && (
               <div style={{ marginTop:16, display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
                 <div style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:12, padding:"18px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:6 }}>RSI (14)</span>
+                  <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:6 }}>RSI (14)</span>
                   <RsiGauge rsi={indicators.RSI}/>
                 </div>
                 <div style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:12, padding:"18px 20px" }}>
-                  <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:14 }}>Moving Average (5)</span>
+                  <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:14 }}>Moving Average (5)</span>
                   <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:28, fontWeight:800, color: price >= indicators.MovingAverage ? teal : red, marginBottom:6 }}>
                     ₹{fmt(indicators.MovingAverage)}
                   </div>
@@ -867,7 +865,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
                   <div style={{ marginTop:12, height:4, background:"rgba(255,255,255,0.05)", borderRadius:2 }}>
                     <div style={{ width:`${Math.min(Math.abs((price-indicators.MovingAverage)/indicators.MovingAverage*100)*5,100)}%`, height:"100%", background: price >= indicators.MovingAverage ? teal : red, borderRadius:2 }}/>
                   </div>
-                  <div style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace", marginTop:4 }}>
+                  <div style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", marginTop:4 }}>
                     {((price-indicators.MovingAverage)/indicators.MovingAverage*100>=0?"+":"")}
                     {((price-indicators.MovingAverage)/indicators.MovingAverage*100).toFixed(3)}% from MA
                   </div>
@@ -882,8 +880,8 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
           <div style={{ padding:"16px 28px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
               <div style={{ width:3, height:14, background:purple, borderRadius:2 }}/>
-              <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Price History</span>
-              <span style={{ fontSize:9, color:"#2a3550", fontFamily:"'DM Mono',monospace" }}>({priceHist.length} records · showing last 20)</span>
+              <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Price History</span>
+              <span style={{ fontSize:9, color: "#5a6a8a", fontFamily:"'DM Mono',monospace" }}>({priceHist.length} records · showing last 20)</span>
             </div>
             <div style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:12, overflow:"hidden" }}>
               <PriceHistoryTable rows={priceHist}/>
@@ -896,7 +894,7 @@ function LiveDetailModal({ company, liveData: initialLiveData, liveMap, onClose 
           <div style={{ padding:"16px 28px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
               <div style={{ width:3, height:14, background:color, borderRadius:2 }}/>
-              <span style={{ fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Place Order · {company.name}</span>
+              <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Place Order · {company.name}</span>
             </div>
             <div style={{ maxWidth:440 }}>
               <OrderPanel company={company} livePrice={price}/>
@@ -920,8 +918,8 @@ function StatCard({ label, value, sub, color: c, icon }) {
       <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:c, opacity:hov?1:0.3 }}/>
       <div style={{ position:"absolute", top:-16, right:-16, width:72, height:72, borderRadius:"50%", background:`radial-gradient(circle,${c}18 0%,transparent 70%)`, opacity:hov?1:0.5 }}/>
       <div style={{ fontSize:22, marginBottom:10 }}>{icon}</div>
-      <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:28, fontWeight:800, color:"#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>{value}</div>
-      <div style={{ fontSize:10, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginTop:6 }}>{label}</div>
+      <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:28, fontWeight:800, color: "#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:10, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginTop:6 }}>{label}</div>
       {sub && <div style={{ fontSize:11, color:c, fontFamily:"'DM Mono',monospace", marginTop:5 }}>{sub}</div>}
     </div>
   );
@@ -932,11 +930,11 @@ function LogoutModal({ onConfirm, onCancel }) {
     <div style={{ position:"fixed", inset:0, background:"rgba(4,8,18,0.88)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, backdropFilter:"blur(8px)" }}>
       <div style={{ background:"#080f1e", border:"1px solid #ff5a6a33", borderTop:"2px solid #ff5a6a", borderRadius:18, padding:"36px 44px", textAlign:"center", minWidth:300 }}>
         <div style={{ fontSize:32, marginBottom:12 }}>⚠</div>
-        <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:22, color:"#eef0f8", marginBottom:8 }}>Sign Out</div>
-        <div style={{ fontSize:11, color:"#2a3550", fontFamily:"'DM Mono',monospace", letterSpacing:1, marginBottom:26 }}>End your trading session?</div>
+        <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:22, color: "#eef0f8", marginBottom:8 }}>Sign Out</div>
+        <div style={{ fontSize:11, color: "#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:1, marginBottom:26 }}>End your trading session?</div>
         <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
           <button onClick={onCancel}
-            style={{ background:"transparent", border:"1px solid #0e1828", color:"#3a4a6a", padding:"9px 24px", borderRadius:8, fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:2, cursor:"pointer" }}
+            style={{ background:"transparent", border:"1px solid #0e1828", color: "#3a4a6a", padding:"9px 24px", borderRadius:8, fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:2, cursor:"pointer" }}
             onMouseEnter={e => { e.currentTarget.style.color="#c8d4f0"; e.currentTarget.style.borderColor="#3a4a6a"; }}
             onMouseLeave={e => { e.currentTarget.style.color="#3a4a6a"; e.currentTarget.style.borderColor="#0e1828"; }}>CANCEL</button>
           <button onClick={onConfirm}
@@ -965,11 +963,12 @@ function BackBtn({ onClick }) {
 export default function Home({ onLogout }) {
   const [tab, setTab]               = useState("dashboard");
   const [companies, setCompanies]   = useState([]);
-  const [shares,    setShares]      = useState([]);  // from stock-service /api/shares
   const [selected, setSelected]     = useState(null);
   const [search, setSearch]         = useState("");
   const [filter, setFilter]         = useState("All");
   const [loading, setLoading]       = useState(true);
+  const [orders,  setOrders]        = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const scrollRef                   = useRef(null);
 
@@ -978,42 +977,36 @@ export default function Home({ onLogout }) {
   const fetchCompanies = async () => {
     try {
       setLoading(true);
-      const [compRes, shareRes] = await Promise.allSettled([
-        STOCK_API.get("/companies"),
-        STOCK_API.get("/shares"),
-      ]);
-      if (compRes.status  === "fulfilled") {
-        if (compRes.value.data?.length > 0)
-          console.log("[StockAPI] Sample company:", compRes.value.data[0]);
-        setCompanies(compRes.value.data);
-      }
-      if (shareRes.status === "fulfilled") setShares(shareRes.value.data);
+      const res = await STOCK_API.get("/companies");
+      setCompanies(res.data);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchCompanies(); }, []);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [tab]);
 
-  const defaultLive = (c) => {
-    // Use pricePerShare from shares table as the best seed price,
-    // falling back to stock-service company fields then 0
-    const shareSeed = shareMap[c.id]?.pricePerShare ?? 0;
-    const price = shareSeed || (c.lastPrice ?? c.last_price ?? c.currentPrice ?? c.price ?? 0);
-    const open  = shareSeed || (c.openingPrice ?? c.opening_price ?? c.openPrice ?? price ?? 0);
-    const high  = c.dayHigh  ?? c.day_high  ?? price ?? 0;
-    const low   = c.dayLow   ?? c.day_low   ?? price ?? 0;
-    return {
-      companyId: c.id, companyName: c.name,
-      price, open, high, low,
-      dayChangePct: open > 0 ? ((price - open) / open) * 100 : 0,
-      tickChangePct: 0,
-      history: price > 0 ? [price] : [],
-    };
+
+  const fetchOrders = async () => {
+    const userId = localStorage.getItem("userId") || 1;
+    setOrdersLoading(true);
+    try {
+      const res = await TRADE_API.get(`/trade/user/${userId}`);
+      setOrders(Array.isArray(res.data) ? res.data : []);
+    } catch(e) {
+      console.warn("[Orders] fetch failed:", e.message);
+      setOrders([]);
+    } finally { setOrdersLoading(false); }
   };
 
-  // Map companyId -> share listing for quick lookup in UI
-  const shareMap = Object.fromEntries(shares.map(s => [s.companyId, s]));
+  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => { if (tab === "orders") fetchOrders(); }, [tab]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [tab]);
+
+  const defaultLive = (c) => ({
+    companyId: c.id, companyName: c.name,
+    price: c.lastPrice||0, open: c.openingPrice||c.lastPrice||0,
+    high: c.dayHigh||c.lastPrice||0, low: c.dayLow||c.lastPrice||0,
+    dayChangePct:0, tickChangePct:0, history:[c.lastPrice||0],
+  });
 
   const gainers            = companies.filter(c => (liveMap[c.id]?.dayChangePct??0) >= 0).length;
   const nearCircuit        = companies.filter(c => Math.abs(liveMap[c.id]?.dayChangePct??0) >= 15).length;
@@ -1021,7 +1014,7 @@ export default function Home({ onLogout }) {
     const q      = search.toLowerCase();
     const matchQ = !q || c.name.toLowerCase().includes(q);
     const dayPct = liveMap[c.id]?.dayChangePct ?? 0;
-    const matchF = filter==="All"?true:filter==="Gainers"?dayPct>=0:filter==="Losers"?dayPct<0:filter==="Circuit"?Math.abs(dayPct)>=15:true;
+    const matchF = filter==="All"?"true":filter==="Gainers"?dayPct>=0:filter==="Losers"?dayPct<0:filter==="Circuit"?Math.abs(dayPct)>=15:true;
     return matchQ && matchF;
   });
   const topGainers = [...companies].sort((a,b)=>(liveMap[b.id]?.dayChangePct??0)-(liveMap[a.id]?.dayChangePct??0)).slice(0,5);
@@ -1030,9 +1023,10 @@ export default function Home({ onLogout }) {
   const NAV = [
     { id:"dashboard", icon:"◈", label:"Dashboard" },
     { id:"exchange",  icon:"◎", label:"Exchange"  },
+    { id:"orders",    icon:"◑", label:"Orders"    },
   ];
 
-  const TH = { padding:"10px 16px", fontSize:9, color:"#2a3550", letterSpacing:3, textTransform:"uppercase", fontWeight:400, fontFamily:"'DM Mono',monospace", textAlign:"left" };
+  const TH = { padding:"10px 16px", fontSize:9, color: "#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontWeight:400, fontFamily:"'DM Mono',monospace", textAlign:"left" };
 
   return (
     <>
@@ -1058,26 +1052,25 @@ export default function Home({ onLogout }) {
         <LiveDetailModal
           company={selected.company}
           liveData={liveMap[selected.company.id] ?? selected.liveData}
-          liveMap={liveMap}
           onClose={() => setSelected(null)}
         />
       )}
 
-      <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#04080e", fontFamily:"'DM Mono',monospace", color:"#c8d4f0" }}>
+      <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#04080e", fontFamily:"'DM Mono',monospace", color: "#c8d4f0" }}>
 
         {/* Navbar */}
         <div style={{ background:"#060d1a", borderBottom:"1px solid #0e1828", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", flexShrink:0, zIndex:100 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:32, height:32, borderRadius:9, background:"linear-gradient(135deg,#00b8ff,#00d4a0)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:16, color:"#04080e" }}>S</div>
+            <div style={{ width:32, height:32, borderRadius:9, background:"linear-gradient(135deg,#00b8ff,#00d4a0)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:16, color: "#04080e" }}>S</div>
             <div>
-              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:16, color:"#eef0f8", letterSpacing:-0.3, lineHeight:1 }}>ShareBazaar</div>
-              <div style={{ fontSize:9, color:"#1a2540", letterSpacing:3 }}>LIVE EXCHANGE</div>
+              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:16, color: "#eef0f8", letterSpacing:-0.3, lineHeight:1 }}>ShareBazaar</div>
+              <div style={{ fontSize:9, color: "#7a8aaa", letterSpacing:3 }}>LIVE EXCHANGE</div>
             </div>
           </div>
           <div style={{ display:"flex", gap:2 }}>
             {NAV.map(n => (
               <button key={n.id} onClick={() => setTab(n.id)}
-                style={{ background:tab===n.id?"rgba(0,184,255,0.1)":"transparent", border:tab===n.id?"1px solid rgba(0,184,255,0.25)":"1px solid transparent", color:tab===n.id?blue:"#2a3550", padding:"7px 18px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:11, letterSpacing:2, textTransform:"uppercase", display:"flex", alignItems:"center", gap:8, transition:"all 0.15s" }}
+                style={{ background:tab===n.id?"rgba(0,184,255,0.1)":"transparent", border:tab===n.id?"1px solid rgba(0,184,255,0.25)":"1px solid transparent", color:tab===n.id?blue:"#8a9aba", padding:"7px 18px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:11, letterSpacing:2, textTransform:"uppercase", display:"flex", alignItems:"center", gap:8, transition:"all 0.15s" }}
                 onMouseEnter={e => { if (tab!==n.id) { e.currentTarget.style.color="#6a7a9a"; e.currentTarget.style.background="rgba(255,255,255,0.02)"; } }}
                 onMouseLeave={e => { if (tab!==n.id) { e.currentTarget.style.color="#2a3550"; e.currentTarget.style.background="transparent"; } }}>
                 <span style={{ fontSize:13 }}>{n.icon}</span>{n.label}
@@ -1087,11 +1080,11 @@ export default function Home({ onLogout }) {
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ display:"flex", alignItems:"center", gap:5 }}>
               <div style={{ width:6, height:6, borderRadius:"50%", background:connected?teal:red, boxShadow:connected?`0 0 5px ${teal}`:"none", animation:connected?"pulseDot 1.5s infinite":"none" }}/>
-              <span style={{ fontSize:9, color:connected?teal:red, letterSpacing:2 }}>{connected?"WS LIVE · 1S":"RECONNECTING…"}</span>
+              <span style={{ fontSize:9, color:connected?teal:"#ff5a6a", letterSpacing:2 }}>{connected?"WS LIVE · 1S":"RECONNECTING…"}</span>
             </div>
             <div style={{ width:1, height:20, background:"#0e1828" }}/>
             <button onClick={fetchCompanies}
-              style={{ background:"transparent", border:"1px solid #0e1828", color:"#2a3550", padding:"5px 12px", borderRadius:7, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, transition:"all 0.15s" }}
+              style={{ background:"transparent", border:"1px solid #0e1828", color: "#5a6a8a", padding:"5px 12px", borderRadius:7, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, transition:"all 0.15s" }}
               onMouseEnter={e => { e.currentTarget.style.color=blue; e.currentTarget.style.borderColor=blue+"44"; }}
               onMouseLeave={e => { e.currentTarget.style.color="#2a3550"; e.currentTarget.style.borderColor="#0e1828"; }}>↻</button>
             <button onClick={() => setShowLogout(true)}
@@ -1115,8 +1108,8 @@ export default function Home({ onLogout }) {
                 const col   = up ? teal : red;
                 return (
                   <span key={i} style={{ display:"inline-flex", alignItems:"center", gap:7, fontSize:11, fontFamily:"'DM Mono',monospace" }}>
-                    <span style={{ color:"#3a4a6a", letterSpacing:1 }}>{c.name.substring(0,5).toUpperCase()}</span>
-                    <span style={{ color:"#c8d4f0" }}>₹{fmt(price)}</span>
+                    <span style={{ color: "#3a4a6a", letterSpacing:1 }}>{c.name.substring(0,5).toUpperCase()}</span>
+                    <span style={{ color: "#c8d4f0" }}>₹{fmt(price)}</span>
                     <span style={{ color:col }}>{up?"▲":"▼"}{dayPct>=0?"+":""}{dayPct.toFixed(2)}%</span>
                   </span>
                 );
@@ -1129,7 +1122,7 @@ export default function Home({ onLogout }) {
         {loading ? (
           <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:14 }}>
             <div style={{ width:20, height:20, border:`2px solid #0e1828`, borderTopColor:blue, borderRadius:"50%", animation:"spin 0.8s linear infinite" }}/>
-            <span style={{ fontSize:11, color:"#2a3550", letterSpacing:3 }}>LOADING MARKET DATA…</span>
+            <span style={{ fontSize:11, color: "#5a6a8a", letterSpacing:3 }}>LOADING MARKET DATA…</span>
           </div>
         ) : (
           <div ref={scrollRef} style={{ flex:1, minHeight:0, overflowY:"auto", padding:"24px 28px 40px" }}>
@@ -1139,10 +1132,10 @@ export default function Home({ onLogout }) {
               <div className="fi" style={{ display:"flex", flexDirection:"column", gap:22 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
                   <div>
-                    <div style={{ fontSize:9, color:"#1a2540", letterSpacing:4, textTransform:"uppercase", marginBottom:4 }}>Market Overview</div>
-                    <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:26, fontWeight:800, color:"#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>Dashboard</h1>
+                    <div style={{ fontSize:9, color: "#4a5a7a", letterSpacing:4, textTransform:"uppercase", marginBottom:4 }}>Market Overview</div>
+                    <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:26, fontWeight:800, color: "#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>Dashboard</h1>
                   </div>
-                  <div style={{ fontSize:10, color:"#1a2540", letterSpacing:1 }}>
+                  <div style={{ fontSize:10, color: "#4a5a7a", letterSpacing:1 }}>
                     {new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
                   </div>
                 </div>
@@ -1159,7 +1152,7 @@ export default function Home({ onLogout }) {
                     <div key={title} style={{ background:"#0a1020", border:"1px solid #0e1828", borderRadius:14, overflow:"hidden" }}>
                       <div style={{ padding:"14px 18px", borderBottom:"1px solid #0e1828", display:"flex", alignItems:"center", gap:8 }}>
                         <div style={{ width:3, height:16, background:c, borderRadius:2 }}/>
-                        <span style={{ fontSize:11, color:"#6a7a9a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>{title}</span>
+                        <span style={{ fontSize:11, color: "#6a7a9a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>{title}</span>
                       </div>
                       {list.map(company => {
                         const ld     = liveMap[company.id] ?? defaultLive(company);
@@ -1174,7 +1167,7 @@ export default function Home({ onLogout }) {
                               <div style={{ background:`${c}15`, border:`1px solid ${c}30`, color:c, padding:"2px 8px", borderRadius:4, fontSize:10, fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>
                                 {company.name.substring(0,5).toUpperCase()}
                               </div>
-                              <span style={{ fontSize:12, color:"#eef0f8", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:600 }}>₹{fmt(ld.price)}</span>
+                              <span style={{ fontSize:12, color: "#eef0f8", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:600 }}>₹{fmt(ld.price)}</span>
                             </div>
                             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                               <LiveSparkline history={ld.history} width={40} height={18}/>
@@ -1192,9 +1185,9 @@ export default function Home({ onLogout }) {
                 <div>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
                     <div style={{ width:3, height:20, background:blue, borderRadius:2, boxShadow:`0 0 8px ${blue}88` }}/>
-                    <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:16, color:"#eef0f8" }}>All Companies</span>
+                    <span style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:16, color: "#eef0f8" }}>All Companies</span>
                     <button onClick={() => setTab("exchange")}
-                      style={{ marginLeft:"auto", background:"transparent", border:"1px solid #0e1828", color:"#2a3550", padding:"4px 12px", borderRadius:6, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, transition:"all 0.15s" }}
+                      style={{ marginLeft:"auto", background:"transparent", border:"1px solid #0e1828", color: "#5a6a8a", padding:"4px 12px", borderRadius:6, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, transition:"all 0.15s" }}
                       onMouseEnter={e => { e.currentTarget.style.color=blue; e.currentTarget.style.borderColor=blue+"44"; }}
                       onMouseLeave={e => { e.currentTarget.style.color="#2a3550"; e.currentTarget.style.borderColor="#0e1828"; }}>LIVE EXCHANGE →</button>
                   </div>
@@ -1215,9 +1208,9 @@ export default function Home({ onLogout }) {
                             </div>
                             <LiveSparkline history={ld.history} width={50} height={22}/>
                           </div>
-                          <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:13, color:"#c8d4f0", marginBottom:4 }}>{c.name}</div>
+                          <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:13, color: "#c8d4f0", marginBottom:4 }}>{c.name}</div>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
-                            <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:17, color:"#eef0f8" }}>₹{fmt(ld.price)}</div>
+                            <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:17, color: "#eef0f8" }}>₹{fmt(ld.price)}</div>
                             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
                               <span style={{ fontSize:11, color, fontFamily:"'DM Mono',monospace", fontWeight:600 }}>{up?"+":""}{ld.dayChangePct.toFixed(2)}%</span>
                               <CircuitBadge dayPct={ld.dayChangePct}/>
@@ -1238,8 +1231,8 @@ export default function Home({ onLogout }) {
                   <div style={{ display:"flex", alignItems:"center", gap:14 }}>
                     <BackBtn onClick={() => setTab("dashboard")}/>
                     <div>
-                      <div style={{ fontSize:9, color:"#1a2540", letterSpacing:4, textTransform:"uppercase", marginBottom:2 }}>Live Market · port 8083</div>
-                      <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:24, fontWeight:800, color:"#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>Exchange</h1>
+                      <div style={{ fontSize:9, color: "#4a5a7a", letterSpacing:4, textTransform:"uppercase", marginBottom:2 }}>Live Market · port 8083</div>
+                      <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:24, fontWeight:800, color: "#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>Exchange</h1>
                     </div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:5 }}>
@@ -1254,11 +1247,11 @@ export default function Home({ onLogout }) {
                     { label:"Circuit",     val:"±20% hard cap",    color:amber },
                     { label:"Interval",    val:"1 second",          color:teal },
                     { label:"Transport",   val:"WS / STOMP",        color:purple },
-                    { label:"Port",        val:"8083",              color:"#6a7a9a" },
+                    { label:"Port",        val:"8083",              color: "#6a7a9a" },
                   ].map(it => (
                     <div key={it.label} style={{ display:"flex", alignItems:"center", gap:8 }}>
                       <div style={{ width:6, height:6, borderRadius:"50%", background:it.color }}/>
-                      <span style={{ fontSize:9, color:"#2a3550", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>{it.label}</span>
+                      <span style={{ fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>{it.label}</span>
                       <span style={{ fontSize:11, color:it.color, fontFamily:"'DM Mono',monospace", fontWeight:600 }}>{it.val}</span>
                     </div>
                   ))}
@@ -1266,9 +1259,9 @@ export default function Home({ onLogout }) {
 
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
                   <div style={{ position:"relative", flex:1, minWidth:220 }}>
-                    <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", color:"#1a2540", fontSize:14 }}>⌕</span>
+                    <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", color: "#4a5a7a", fontSize:14 }}>⌕</span>
                     <input placeholder="Search company…" value={search} onChange={e => setSearch(e.target.value)}
-                      style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:8, padding:"9px 12px 9px 32px", color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:12, outline:"none", width:"100%", transition:"border-color 0.2s" }}
+                      style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:8, padding:"9px 12px 9px 32px", color: "#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:12, outline:"none", width:"100%", transition:"border-color 0.2s" }}
                       onFocus={e => e.target.style.borderColor="#1e3a5a"}
                       onBlur={e  => e.target.style.borderColor="#0e1828"}/>
                   </div>
@@ -1299,11 +1292,11 @@ export default function Home({ onLogout }) {
                     </tbody>
                   </table>
                   {filteredCompanies.length === 0 && (
-                    <div style={{ textAlign:"center", padding:48, color:"#1a2540", fontSize:11, letterSpacing:2 }}>NO COMPANIES MATCH</div>
+                    <div style={{ textAlign:"center", padding:48, color: "#4a5a7a", fontSize:11, letterSpacing:2 }}>NO COMPANIES MATCH</div>
                   )}
                 </div>
                 {filteredCompanies.length > 0 && (
-                  <div style={{ textAlign:"center", fontSize:10, color:"#1a2540", letterSpacing:2 }}>
+                  <div style={{ textAlign:"center", fontSize:10, color: "#7a8aaa", letterSpacing:2 }}>
                     {filteredCompanies.length} COMPANIES · PORT 8083 · 1S WS TICKS
                   </div>
                 )}
@@ -1311,6 +1304,155 @@ export default function Home({ onLogout }) {
               </div>
             )}
 
+
+            {/* ORDERS */}
+            {tab === "orders" && (
+              <div className="fi" style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+                {/* Header */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                    <div>
+                      <div style={{ fontSize:9, color: "#4a5a7a", letterSpacing:4, textTransform:"uppercase", marginBottom:2 }}>My Activity</div>
+                      <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:24, fontWeight:800, color: "#eef0f8", letterSpacing:-0.5, lineHeight:1 }}>Orders</h1>
+                    </div>
+                  </div>
+                  <button onClick={fetchOrders}
+                    style={{ background:"transparent", border:"1px solid #0e1828", color: "#5a6a8a", padding:"7px 16px", borderRadius:7, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, transition:"all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.color=blue; e.currentTarget.style.borderColor=blue+"44"; }}
+                    onMouseLeave={e => { e.currentTarget.style.color="#2a3550"; e.currentTarget.style.borderColor="#0e1828"; }}>
+                    ↻ Refresh
+                  </button>
+                </div>
+
+                {/* Summary strip */}
+                {orders.length > 0 && (() => {
+                  const buys   = orders.filter(o => o.side === "BUY");
+                  const sells  = orders.filter(o => o.side === "SELL");
+                  const filled = orders.filter(o => o.status === "EXECUTED" || o.status === "FILLED");
+                  const pending= orders.filter(o => o.status === "PENDING");
+                  const totalVal = filled.reduce((s,o) => s + o.price * o.quantity, 0);
+                  return (
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10 }}>
+                      {[
+                        { label:"Total Orders",  val:orders.length,          color:blue },
+                        { label:"Buy Orders",    val:buys.length,            color:teal },
+                        { label:"Sell Orders",   val:sells.length,           color:red  },
+                        { label:"Executed",      val:filled.length,          color:teal },
+                        { label:"Traded Value",  val:`₹${fmtCap(totalVal)}`, color:amber },
+                      ].map(s => (
+                        <div key={s.label} style={{ background:"#0a1020", border:`1px solid ${s.color}22`, borderRadius:10, padding:"14px 16px" }}>
+                          <div style={{ fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:6 }}>{s.label}</div>
+                          <div style={{ fontSize:20, fontWeight:800, color:s.color, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>{s.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Orders table */}
+                <div style={{ background:"#0a1020", border:"1px solid #0e1828", borderRadius:14, overflow:"hidden" }}>
+                  {ordersLoading ? (
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, padding:48 }}>
+                      <div style={{ width:18, height:18, border:`2px solid #0e1828`, borderTopColor:blue, borderRadius:"50%", animation:"spin 0.8s linear infinite" }}/>
+                      <span style={{ fontSize:11, color: "#5a6a8a", letterSpacing:2 }}>LOADING ORDERS…</span>
+                    </div>
+                  ) : orders.length === 0 ? (
+                    <div style={{ textAlign:"center", padding:56 }}>
+                      <div style={{ fontSize:32, marginBottom:10 }}>◑</div>
+                      <div style={{ fontSize:11, color: "#7a8aaa", letterSpacing:3, fontFamily:"'DM Mono',monospace" }}>NO ORDERS YET</div>
+                      <div style={{ fontSize:10, color: "#3a4a6a", marginTop:6 }}>Go to Exchange → click a company → Trade tab</div>
+                    </div>
+                  ) : (
+                    <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                      <thead>
+                        <tr style={{ borderBottom:"1px solid #0e1828", background:"#060d1a" }}>
+                          {["#","Company","Side","Type","Qty","Price","Value","Status","Time"].map(h => (
+                            <th key={h} style={{ padding:"10px 14px", fontSize:9, color: "#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", textAlign:["Qty","Price","Value"].includes(h)?"right":"left" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...orders].reverse().map((order, i) => {
+                          const isBuy    = order.side === "BUY";
+                          const isExec   = order.status === "EXECUTED" || order.status === "FILLED";
+                          const isPend   = order.status === "PENDING";
+                          const sideCol  = isBuy ? teal : red;
+                          const statCol  = isExec ? teal : isPend ? amber : "#6a7a9a";
+                          const company  = companies.find(c => c.id === order.companyId);
+                          const val      = order.price * order.quantity;
+                          return (
+                            <tr key={order.id}
+                              style={{ borderBottom:"1px solid #090f1e", transition:"background 0.15s" }}
+                              onMouseEnter={e => e.currentTarget.style.background="rgba(0,184,255,0.02)"}
+                              onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                              {/* # */}
+                              <td style={{ padding:"13px 14px", fontSize:10, color: "#4a5a7a", fontFamily:"'DM Mono',monospace" }}>
+                                {String(orders.length - i).padStart(3,"0")}
+                              </td>
+                              {/* Company */}
+                              <td style={{ padding:"13px 14px" }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <div style={{ width:30, height:30, borderRadius:7, background:`${sideCol}15`, border:`1px solid ${sideCol}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:sideCol, flexShrink:0 }}>
+                                    {(company?.name || `#${order.companyId}`).substring(0,3).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize:12, fontWeight:600, color: "#c8d4f0", fontFamily:"'DM Mono',monospace" }}>{company?.name || `Company #${order.companyId}`}</div>
+                                    <div style={{ fontSize:9, color: "#5a6a8a" }}>ID #{order.companyId}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              {/* Side */}
+                              <td style={{ padding:"13px 14px" }}>
+                                <span style={{ background:`${sideCol}18`, border:`1px solid ${sideCol}44`, color:sideCol, padding:"3px 10px", borderRadius:5, fontSize:10, fontFamily:"'DM Mono',monospace", fontWeight:700, letterSpacing:1 }}>
+                                  {isBuy ? "▲ BUY" : "▼ SELL"}
+                                </span>
+                              </td>
+                              {/* Type */}
+                              <td style={{ padding:"13px 14px" }}>
+                                <span style={{ background:"rgba(167,139,250,0.1)", color:purple, padding:"3px 8px", borderRadius:4, fontSize:9, fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>
+                                  {order.orderType || "MARKET"}
+                                </span>
+                              </td>
+                              {/* Qty */}
+                              <td style={{ padding:"13px 14px", textAlign:"right", fontSize:13, fontWeight:600, color: "#eef0f8", fontFamily:"'DM Mono',monospace" }}>
+                                {order.quantity}
+                              </td>
+                              {/* Price */}
+                              <td style={{ padding:"13px 14px", textAlign:"right" }}>
+                                <div style={{ fontSize:13, fontWeight:700, color: "#eef0f8", fontFamily:"'Plus Jakarta Sans',sans-serif" }}>₹{fmt(order.price)}</div>
+                              </td>
+                              {/* Value */}
+                              <td style={{ padding:"13px 14px", textAlign:"right" }}>
+                                <div style={{ fontSize:12, color:blue, fontFamily:"'DM Mono',monospace", fontWeight:600 }}>₹{fmt(val)}</div>
+                              </td>
+                              {/* Status */}
+                              <td style={{ padding:"13px 14px" }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                                  <div style={{ width:5, height:5, borderRadius:"50%", background:statCol, boxShadow:isExec?`0 0 5px ${statCol}`:"none" }}/>
+                                  <span style={{ fontSize:10, color:statCol, fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>{order.status}</span>
+                                </div>
+                              </td>
+                              {/* Time */}
+                              <td style={{ padding:"13px 14px", fontSize:10, color: "#3a4a6a", fontFamily:"'DM Mono',monospace" }}>
+                                {fmtTime(order.createdAt)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {orders.length > 0 && (
+                  <div style={{ textAlign:"center", fontSize:10, color: "#7a8aaa", letterSpacing:2 }}>
+                    {orders.length} ORDERS · USER #{localStorage.getItem("userId") || 1}
+                  </div>
+                )}
+                <div style={{ height:24 }}/>
+              </div>
+            )}
           </div>
         )}
       </div>

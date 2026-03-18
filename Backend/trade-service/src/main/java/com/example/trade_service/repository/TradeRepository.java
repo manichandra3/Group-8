@@ -16,4 +16,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
     // 🔥 portfolio (future)
     List<Trade> findByUserId(Long userId);
+    List<Trade> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    List<Trade> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
 }
