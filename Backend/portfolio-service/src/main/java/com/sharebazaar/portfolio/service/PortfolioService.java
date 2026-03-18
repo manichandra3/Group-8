@@ -23,77 +23,64 @@ public class PortfolioService {
     private final HoldingRepository holdingRepository;
 
     public PortfolioService(PortfolioRepository portfolioRepository,
-                           CustomerRepository customerRepository,
-                           HoldingRepository holdingRepository) {
+                            CustomerRepository customerRepository,
+                            HoldingRepository holdingRepository) {
         this.portfolioRepository = portfolioRepository;
         this.customerRepository = customerRepository;
         this.holdingRepository = holdingRepository;
     }
 
     @Transactional
-    public PortfolioResponse createPortfolio(Long userId, String userEmail, PortfolioRequest request) {
-        // Get or create customer
+    public PortfolioResponse createPortfolio(Long userId, String userName, String userEmail, PortfolioRequest request) {
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseGet(() -> {
-                Customer newCustomer = new Customer(userId, userEmail, userEmail);
-                return customerRepository.save(newCustomer);
-            });
+                .orElseGet(() -> {
+                    // Use actual name from header; fall back to email if name not provided
+                    String name = (userName != null && !userName.isBlank()) ? userName : userEmail;
+                    Customer newCustomer = new Customer(userId, name, userEmail);
+                    return customerRepository.save(newCustomer);
+                });
 
         Portfolio portfolio = new Portfolio(customer, request.getName());
         portfolio.setDescription(request.getDescription());
-        
         portfolio = portfolioRepository.save(portfolio);
-        
         return mapToResponse(portfolio);
     }
 
     @Transactional(readOnly = true)
     public List<PortfolioResponse> getCustomerPortfolios(Long userId) {
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
-
+                .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
         List<Portfolio> portfolios = portfolioRepository.findByCustomerIdAndActiveTrue(customer.getId());
-        
-        return portfolios.stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
+        return portfolios.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public PortfolioResponse getPortfolioById(Long portfolioId, Long userId) {
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
-
+                .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
         Portfolio portfolio = portfolioRepository.findByIdAndCustomerId(portfolioId, customer.getId())
-            .orElseThrow(() -> new RuntimeException("Portfolio not found with id: " + portfolioId));
-
+                .orElseThrow(() -> new RuntimeException("Portfolio not found with id: " + portfolioId));
         return mapToResponse(portfolio);
     }
 
     @Transactional
     public PortfolioResponse updatePortfolio(Long portfolioId, Long userId, PortfolioRequest request) {
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
-
+                .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
         Portfolio portfolio = portfolioRepository.findByIdAndCustomerId(portfolioId, customer.getId())
-            .orElseThrow(() -> new RuntimeException("Portfolio not found with id: " + portfolioId));
-
+                .orElseThrow(() -> new RuntimeException("Portfolio not found with id: " + portfolioId));
         portfolio.setName(request.getName());
         portfolio.setDescription(request.getDescription());
-        
         portfolio = portfolioRepository.save(portfolio);
-        
         return mapToResponse(portfolio);
     }
 
     @Transactional
     public void deletePortfolio(Long portfolioId, Long userId) {
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
-
+                .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
         Portfolio portfolio = portfolioRepository.findByIdAndCustomerId(portfolioId, customer.getId())
-            .orElseThrow(() -> new RuntimeException("Portfolio not found with id: " + portfolioId));
-
+                .orElseThrow(() -> new RuntimeException("Portfolio not found with id: " + portfolioId));
         portfolio.setActive(false);
         portfolioRepository.save(portfolio);
     }
@@ -107,12 +94,10 @@ public class PortfolioService {
         response.setCreatedAt(portfolio.getCreatedAt());
         response.setUpdatedAt(portfolio.getUpdatedAt());
 
-        // Load holdings
         List<Holding> holdings = holdingRepository.findByPortfolioIdAndQuantityGreaterThan(portfolio.getId(), 0L);
         response.setHoldings(holdings.stream()
-            .map(this::mapHoldingToResponse)
-            .collect(Collectors.toList()));
-
+                .map(this::mapHoldingToResponse)
+                .collect(Collectors.toList()));
         return response;
     }
 

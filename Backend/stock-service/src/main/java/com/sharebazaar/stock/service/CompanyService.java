@@ -5,6 +5,7 @@ import com.sharebazaar.stock.domain.Company;
 import com.sharebazaar.stock.dto.CompanyRequest;
 import com.sharebazaar.stock.dto.CompanyResponse;
 import com.sharebazaar.stock.repository.CompanyRepository;
+import com.sharebazaar.stock.repository.ShareRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,11 @@ public class CompanyService {
     private static final Logger log = LoggerFactory.getLogger(CompanyService.class);
 
     private final CompanyRepository companyRepository;
+    private final ShareRepository shareRepository;
 
-    public CompanyService(CompanyRepository companyRepository) {
+    public CompanyService(CompanyRepository companyRepository, ShareRepository shareRepository) {
         this.companyRepository = companyRepository;
+        this.shareRepository = shareRepository;
     }
 
     @Transactional
@@ -113,7 +116,12 @@ public class CompanyService {
         Company company = companyRepository.findById(id)
                 .orElseThrow(() -> new GlobalException("Company not found"));
 
+        // 🔥 delete child records first
+        shareRepository.deleteByCompanyId(id);
+
+        // then delete parent
         companyRepository.delete(company);
+
         log.info("Company deleted: id={}", id);
     }
 

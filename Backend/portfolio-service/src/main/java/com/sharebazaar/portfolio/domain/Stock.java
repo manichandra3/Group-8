@@ -30,6 +30,9 @@ public class Stock {
     @Column(name = "company_name", nullable = false, length = 100)
     private String companyName;
 
+    @Column(name = "sector", length = 60)
+    private String sector;
+
     @Column(name = "total_shares", nullable = false)
     private Long totalShares;
 
@@ -63,113 +66,77 @@ public class Stock {
         updatedAt = LocalDateTime.now();
     }
 
-    public Stock() {
-    }
+    public Stock() {}
 
-    public Stock(Long companyId, String companySymbol, String companyName, Long totalShares, BigDecimal currentPrice) {
-        this.companyId = companyId;
-        this.companySymbol = companySymbol;
-        this.companyName = companyName;
-        this.totalShares = totalShares;
+    // Original constructor — sector defaults to null (backward compatible)
+    public Stock(Long companyId, String companySymbol, String companyName,
+                 Long totalShares, BigDecimal currentPrice) {
+        this.companyId       = companyId;
+        this.companySymbol   = companySymbol;
+        this.companyName     = companyName;
+        this.totalShares     = totalShares;
         this.availableShares = totalShares;
-        this.currentPrice = currentPrice;
+        this.currentPrice    = currentPrice;
     }
 
-    /**
-     * Records a buy transaction - decreases available shares and increases total bought
-     */
+    // New constructor with sector
+    public Stock(Long companyId, String companySymbol, String companyName,
+                 String sector, Long totalShares, BigDecimal currentPrice) {
+        this.companyId       = companyId;
+        this.companySymbol   = companySymbol;
+        this.companyName     = companyName;
+        this.sector          = sector;
+        this.totalShares     = totalShares;
+        this.availableShares = totalShares;
+        this.currentPrice    = currentPrice;
+    }
+
     public void recordBuy(Long quantity) {
         if (quantity > this.availableShares) {
             throw new IllegalStateException("Insufficient shares available for purchase");
         }
-        this.availableShares -= quantity;
+        this.availableShares   -= quantity;
         this.totalSharesBought += quantity;
     }
 
-    /**
-     * Records a sell transaction - increases available shares and decreases total bought
-     */
     public void recordSell(Long quantity) {
         if (quantity > this.totalSharesBought) {
             throw new IllegalStateException("Cannot sell more shares than have been bought");
         }
-        this.availableShares += quantity;
+        this.availableShares   += quantity;
         this.totalSharesBought -= quantity;
     }
 
-    public Long getId() {
-        return id;
-    }
+    // Getters & setters
+    public Long getId()                          { return id; }
+    public void setId(Long id)                   { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getCompanyId()                   { return companyId; }
+    public void setCompanyId(Long companyId)     { this.companyId = companyId; }
 
-    public Long getCompanyId() {
-        return companyId;
-    }
+    public String getCompanySymbol()             { return companySymbol; }
+    public void setCompanySymbol(String s)       { this.companySymbol = s; }
 
-    public void setCompanyId(Long companyId) {
-        this.companyId = companyId;
-    }
+    public String getCompanyName()               { return companyName; }
+    public void setCompanyName(String s)         { this.companyName = s; }
 
-    public String getCompanySymbol() {
-        return companySymbol;
-    }
+    public String getSector()                    { return sector; }
+    public void setSector(String sector)         { this.sector = sector; }
 
-    public void setCompanySymbol(String companySymbol) {
-        this.companySymbol = companySymbol;
-    }
+    public Long getTotalShares()                 { return totalShares; }
+    public void setTotalShares(Long n)           { this.totalShares = n; }
 
-    public String getCompanyName() {
-        return companyName;
-    }
+    public Long getAvailableShares()             { return availableShares; }
+    public void setAvailableShares(Long n)       { this.availableShares = n; }
 
-    public void setCompanyName(String companyName) {
-        this.companyName = companyName;
-    }
+    public Long getTotalSharesBought()           { return totalSharesBought; }
+    public void setTotalSharesBought(Long n)     { this.totalSharesBought = n; }
 
-    public Long getTotalShares() {
-        return totalShares;
-    }
+    public BigDecimal getCurrentPrice()          { return currentPrice; }
+    public void setCurrentPrice(BigDecimal p)    { this.currentPrice = p; }
 
-    public void setTotalShares(Long totalShares) {
-        this.totalShares = totalShares;
-    }
+    public Long getVersion()                     { return version; }
 
-    public Long getAvailableShares() {
-        return availableShares;
-    }
-
-    public void setAvailableShares(Long availableShares) {
-        this.availableShares = availableShares;
-    }
-
-    public Long getTotalSharesBought() {
-        return totalSharesBought;
-    }
-
-    public void setTotalSharesBought(Long totalSharesBought) {
-        this.totalSharesBought = totalSharesBought;
-    }
-
-    public BigDecimal getCurrentPrice() {
-        return currentPrice;
-    }
-
-    public void setCurrentPrice(BigDecimal currentPrice) {
-        this.currentPrice = currentPrice;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
+    public LocalDateTime getCreatedAt()          { return createdAt; }
+    public LocalDateTime getUpdatedAt()          { return updatedAt; }
 }

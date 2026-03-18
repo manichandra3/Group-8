@@ -17,13 +17,14 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Syncs trade-service `company` table from stock-service on startup
  * and every 60 seconds.
  *
- * Uses pricePerShare from the stock-service `shares` table as the
- * seed price so MarketEngine starts from the real IPO/listing price.
+ * Matching strategy: by NAME (case-insensitive trim), NOT by ID —
+ * because the two services have independent auto-increment sequences.
  *
  * application.properties:
  *   stock.service.url=http://localhost:8082
@@ -51,7 +52,7 @@ public class CompanySyncService {
 
     public void sync() {
         try {
-            // ── 1. Fetch all active companies from stock-service ──────────────
+            // ── 1. Fetch companies from stock-service ─────────────────────────
             ResponseEntity<List<Map<String, Object>>> companyRes = restTemplate.exchange(
                     stockServiceUrl + "/api/companies",
                     HttpMethod.GET, null,
@@ -63,9 +64,9 @@ public class CompanySyncService {
                 return;
             }
 
-            // ── 2. Fetch all share listings from stock-service ────────────────
-            //    Build a map of companyId -> pricePerShare
-            Map<Long, Double> sharePriceByCompanyId = new HashMap<>();
+            // ── 2. Fetch share prices from stock-service ──────────────────────
+            // Map: stock-service companyId → pricePerShare
+            Map<Long, Double> sharePriceByStockId = new HashMap<>();
             try {
                 ResponseEntity<List<Map<String, Object>>> shareRes = restTemplate.exchange(
                         stockServiceUrl + "/api/shares",
@@ -75,65 +76,64 @@ public class CompanySyncService {
                 List<Map<String, Object>> shares = shareRes.getBody();
                 if (shares != null) {
                     for (Map<String, Object> share : shares) {
-                        Long companyId   = Long.valueOf(share.get("companyId").toString());
-                        Double seedPrice = Double.valueOf(share.get("pricePerShare").toString());
-                        // If a company has multiple share listings, take the latest (last wins)
-                        sharePriceByCompanyId.put(companyId, seedPrice);
+                        Long   stockCompanyId = Long.valueOf(share.get("companyId").toString());
+                        Double price          = Double.valueOf(share.get("pricePerShare").toString());
+                        sharePriceByStockId.put(stockCompanyId, price);
                     }
                 }
             } catch (Exception e) {
-                System.err.println("[CompanySync] Could not fetch shares (will use 100 as fallback): " + e.getMessage());
+                System.err.println("[CompanySync] Could not fetch shares (fallback ₹100): " + e.getMessage());
             }
 
-            // ── 3. Upsert into trade-service company table ────────────────────
+            // ── 3. Upsert by NAME — safe regardless of ID sequences ───────────
             int created = 0, updated = 0, skipped = 0;
 
             for (Map<String, Object> sc : stockCompanies) {
+                // Skip inactive companies
                 Object activeObj = sc.get("active");
                 if (activeObj instanceof Boolean && !(Boolean) activeObj) continue;
 
-                Long   id   = Long.valueOf(sc.get("id").toString());
-                String name = sc.get("name").toString();
+                Long   stockId   = Long.valueOf(sc.get("id").toString());
+                String name      = sc.get("name").toString().trim();
+                double seedPrice = sharePriceByStockId.getOrDefault(stockId, 100.00);
 
-                // Use the share listing price; fall back to 100 if no share listed yet
-                double seedPrice = sharePriceByCompanyId.getOrDefault(id, 100.00);
+                // Find existing trade-service company by name (case-insensitive)
+                Optional<Company> existing = companyRepository
+                        .findByNameIgnoreCase(name);
 
-                if (companyRepository.existsById(id)) {
-                    companyRepository.findById(id).ifPresent(existing -> {
-                        boolean dirty = false;
+                if (existing.isPresent()) {
+                    Company c     = existing.get();
+                    boolean dirty = false;
 
-                        // Keep name in sync with stock-service
-                        if (!existing.getName().equals(name)) {
-                            existing.setName(name);
-                            dirty = true;
-                        }
+                    // Seed openingPrice only if never set
+                    if (c.getOpeningPrice() == 0 && seedPrice > 0) {
+                        c.setOpeningPrice(seedPrice);
+                        c.setLastPrice(seedPrice);
+                        dirty = true;
+                        updated++;
+                    }
 
-                        // Only update openingPrice if it was never set (0),
-                        // so we don't overwrite today's real open mid-session
-                        if (existing.getOpeningPrice() == 0 && seedPrice > 0) {
-                            existing.setOpeningPrice(seedPrice);
-                            existing.setLastPrice(seedPrice);
-                            dirty = true;
-                        }
+                    if (dirty) {
+                        companyRepository.save(c);
+                    } else {
+                        skipped++;
+                    }
 
-                        if (dirty) companyRepository.save(existing);
-                    });
-                    skipped++;
                 } else {
-                    Company company = new Company();
-                    company.setId(id);
-                    company.setName(name);
-                    company.setLastPrice(seedPrice);
-                    company.setOpeningPrice(seedPrice);
-                    company.setDayHigh(0);   // MarketEngine seeds on first tick
-                    company.setDayLow(0);
-                    companyRepository.save(company);
+                    // Create new — let the DB assign its own auto-increment ID
+                    Company c = new Company();
+                    c.setName(name);
+                    c.setLastPrice(seedPrice);
+                    c.setOpeningPrice(seedPrice);
+                    c.setDayHigh(0);   // MarketEngine sets these on first tick
+                    c.setDayLow(0);
+                    companyRepository.save(c);
                     created++;
                 }
             }
 
-            System.out.printf("[CompanySync] Done — %d created, %d already existed (%d updated).%n",
-                    created, skipped, updated);
+            System.out.printf("[CompanySync] Done — %d created, %d updated, %d skipped.%n",
+                    created, updated, skipped);
 
         } catch (Exception e) {
             System.err.println("[CompanySync] Sync failed: " + e.getMessage());

@@ -9,11 +9,11 @@ import com.sharebazaar.portfolio.service.TransactionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,7 +28,7 @@ public class TransactionController {
     private final TransactionRepository transactionRepository;
 
     public TransactionController(TransactionService transactionService,
-                                TransactionRepository transactionRepository) {
+                                 TransactionRepository transactionRepository) {
         this.transactionService = transactionService;
         this.transactionRepository = transactionRepository;
     }
@@ -36,42 +36,40 @@ public class TransactionController {
     @PostMapping("/buy")
     public ResponseEntity<TransactionResponse> buyShares(
             @Valid @RequestBody BuySharesRequest request,
-            Authentication authentication) {
+            @RequestHeader("X-User-Id") Long userId) {
         Transaction transaction = transactionService.buyShares(
-            request.getPortfolioId(),
-            request.getCompanySymbol(),
-            request.getQuantity(),
-            request.getPricePerShare()
+                userId,
+                request.getPortfolioId(),
+                request.getCompanySymbol(),
+                request.getQuantity(),
+                request.getPricePerShare()
         );
-        
         return ResponseEntity.status(HttpStatus.CREATED).body(mapToResponse(transaction));
     }
 
     @PostMapping("/sell")
     public ResponseEntity<TransactionResponse> sellShares(
             @Valid @RequestBody SellSharesRequest request,
-            Authentication authentication) {
+            @RequestHeader("X-User-Id") Long userId) {
         Transaction transaction = transactionService.sellShares(
-            request.getPortfolioId(),
-            request.getCompanySymbol(),
-            request.getQuantity(),
-            request.getPricePerShare()
+                userId,
+                request.getPortfolioId(),
+                request.getCompanySymbol(),
+                request.getQuantity(),
+                request.getPricePerShare()
         );
-        
         return ResponseEntity.status(HttpStatus.CREATED).body(mapToResponse(transaction));
     }
 
     @GetMapping("/portfolio/{portfolioId}")
     public ResponseEntity<List<TransactionResponse>> getPortfolioTransactions(
             @PathVariable Long portfolioId,
-            Authentication authentication) {
+            @RequestHeader("X-User-Id") Long userId) {
         List<Transaction> transactions = transactionRepository
-            .findByPortfolioIdOrderByTransactionDateDesc(portfolioId);
-        
+                .findByPortfolioIdOrderByTransactionDateDesc(portfolioId);
         List<TransactionResponse> response = transactions.stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
-        
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
 

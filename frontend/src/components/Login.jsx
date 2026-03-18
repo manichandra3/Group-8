@@ -51,9 +51,10 @@ export default function Login({ quotes }) {
         return;
       }
 
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("token",    data.token);
       localStorage.setItem("username", data.user.username);
-      localStorage.setItem("role", data.user.role);
+      localStorage.setItem("role",     data.user.role);
+      localStorage.setItem("userId",   data.user.id);   // ← fix: save the user ID
 
       if (data.user.role === "ADMIN") {
         navigate("/admin");

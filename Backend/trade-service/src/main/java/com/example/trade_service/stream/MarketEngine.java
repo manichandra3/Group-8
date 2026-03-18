@@ -23,7 +23,6 @@ public class MarketEngine {
     @Autowired
     private PriceBuffer buffer;
 
-    // ── NEW: injected to broadcast price ticks over WebSocket ────────────────
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
@@ -34,54 +33,43 @@ public class MarketEngine {
 
         companyRepo.findAll().forEach(company -> {
 
-            // ── 1. Get last price from cache (same as before) ─────────────────
+            // ── 1. Get last price ─────────────────────────────────────────────
             double lastPrice = priceCache.getPrice(company.getId());
-            if (lastPrice == 0) {
-                lastPrice = company.getLastPrice();
-            }
+            if (lastPrice == 0) lastPrice = company.getLastPrice();
 
-            // ── 2. Compute new price (same logic as before) ───────────────────
-            //    Random walk: uniform ±5% per tick
-            //    (your original code used ±5% — (random * 10) - 5 = ±5%)
+            // ── 2. Compute new price (±5% per tick, ±20% day cap) ─────────────
             double percentChange = (random.nextDouble() * 10) - 5;
             double newPrice      = lastPrice + (lastPrice * percentChange / 100);
 
-            // ── 3. Hard-clamp to ±20% of day open (same as before) ────────────
             double open = company.getOpeningPrice();
-            double max  = open * 1.20;
-            double min  = open * 0.80;
+            // ── FIX: if openingPrice never set, use lastPrice as open ──────────
+            if (open == 0) open = lastPrice;
+
+            double max = open * 1.20;
+            double min = open * 0.80;
 
             if (newPrice > max) newPrice = max;
             if (newPrice < min) newPrice = min;
-
             newPrice = Math.round(newPrice * 100.0) / 100.0;
 
-            // ── 4. Update cache + buffer (same as before) ─────────────────────
+            // ── 3. Update cache + buffer ──────────────────────────────────────
             priceCache.updatePrice(company.getId(), newPrice);
             buffer.addPrice(company.getId(), newPrice);
 
-            // ── 5. NEW: compute derived fields and broadcast ──────────────────
+            // ── 4. Compute dayHigh / dayLow ───────────────────────────────────
+            // FIX: if dayHigh / dayLow are 0 (new company, never traded),
+            // initialise them to newPrice instead of using 0.
+            double existingHigh = company.getDayHigh();
+            double existingLow  = company.getDayLow();
 
-            // dayHigh / dayLow — update in-memory on company (not saved to DB
-            // yet — CompanyBatchUpdater handles DB flush every 10s as before)
-            double dayHigh = Math.max(company.getDayHigh(), newPrice);
-            double dayLow  = company.getDayLow() == 0
-                    ? newPrice
-                    : Math.min(company.getDayLow(), newPrice);
+            double dayHigh = (existingHigh == 0) ? newPrice : Math.max(existingHigh, newPrice);
+            double dayLow  = (existingLow  == 0) ? newPrice : Math.min(existingLow,  newPrice);
 
-            // Write back so the next tick sees the updated values
-            company.setDayHigh(dayHigh);
-            company.setDayLow(dayLow);
+            // ── 5. Compute % changes ──────────────────────────────────────────
+            double dayChangePct  = (open == 0) ? 0.0 : ((newPrice - open) / open) * 100.0;
+            double tickChangePct = (lastPrice == 0) ? 0.0 : ((newPrice - lastPrice) / lastPrice) * 100.0;
 
-            // % change from day open  (already constrained ±20% by the clamp above)
-            double dayChangePct = open == 0 ? 0
-                    : ((newPrice - open) / open) * 100.0;
-
-            // % change from previous tick
-            double tickChangePct = lastPrice == 0 ? 0
-                    : ((newPrice - lastPrice) / lastPrice) * 100.0;
-
-            // Build tick payload and send to all subscribers of /topic/prices
+            // ── 6. Broadcast over WebSocket ───────────────────────────────────
             PriceTick tick = new PriceTick(
                     company.getId(),
                     company.getName(),
@@ -92,7 +80,6 @@ public class MarketEngine {
                     dayChangePct,
                     tickChangePct
             );
-
             messagingTemplate.convertAndSend("/topic/prices", tick);
         });
     }
