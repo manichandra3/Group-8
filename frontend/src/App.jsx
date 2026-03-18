@@ -8,7 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 
 import { fetchAllQuotes } from "./stockService";
 import "./index.css";
-import { DataProvider } from "./context/DataContext";
+import { useData } from "./context/DataContext";
 
 /* ─── Background layers ─── */
 function BgCanvas() {
@@ -78,6 +78,7 @@ function ProtectedRoute({ children, roleRequired }) {
 /* ─── Root App ─── */
 export default function App() {
   const navigate = useNavigate();
+  const { logout } = useData();
 
   const [quotes, setQuotes] = useState([]);
   const [tickerLoading, setTickerLoading] = useState(true);
@@ -112,9 +113,7 @@ export default function App() {
   }, []);
 
   return (
-
-    <DataProvider>
-
+    <>
       <BgCanvas />
 
       <TickerBar quotes={quotes} loading={tickerLoading} />
@@ -144,9 +143,7 @@ export default function App() {
                 <Home
                   quotes={quotes}
                   onLogout={() => {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("role");
-                    localStorage.removeItem("username");
+                    logout();
                     navigate("/login");
                   }}
                 />
@@ -159,7 +156,10 @@ export default function App() {
             path="/admin"
             element={
               <ProtectedRoute roleRequired="ADMIN">
-                <AdminDashboard onSignOut={() => navigate("/login")} />
+                <AdminDashboard onSignOut={() => {
+                  logout();
+                  navigate("/login");
+                }} />
               </ProtectedRoute>
             }
           />
@@ -173,7 +173,6 @@ export default function App() {
         </Routes>
 
       </div>
-
-    </DataProvider>
+    </>
   );
 }

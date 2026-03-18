@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 
-// Reusable form modal (simplified – you can enhance later)
-function EditForm({ title, fields, initialData, onSave, onCancel }) {
+// Reusable form modal
+function EditForm({ title, fields, initialData, onSave, onCancel, companies }) {
   const [formData, setFormData] = useState(initialData || {});
 
   const handleChange = (e) => {
@@ -21,13 +21,28 @@ function EditForm({ title, fields, initialData, onSave, onCancel }) {
         {fields.map(field => (
           <div key={field.name} style={{ marginBottom: 10 }}>
             <label>{field.label}: </label>
-            <input
-              type={field.type || 'text'}
-              name={field.name}
-              value={formData[field.name] || ''}
-              onChange={handleChange}
-              style={{ background: '#1e1e3f', border: '1px solid #2d2d5f', color: '#fff', padding: 5, borderRadius: 4 }}
-            />
+            {field.type === 'select' ? (
+               <select
+                 name={field.name}
+                 value={formData[field.name] || ''}
+                 onChange={handleChange}
+                 style={{ background: '#1e1e3f', border: '1px solid #2d2d5f', color: '#fff', padding: 5, borderRadius: 4, width: '100%' }}
+               >
+                 <option value="">Select...</option>
+                 {field.options && field.options.map(opt => (
+                   <option key={opt.value} value={opt.value}>{opt.label}</option>
+                 ))}
+               </select>
+            ) : (
+                <input
+                  type={field.type || 'text'}
+                  name={field.name}
+                  value={formData[field.name] || ''}
+                  onChange={handleChange}
+                  readOnly={field.readOnly}
+                  style={{ background: field.readOnly ? '#333' : '#1e1e3f', border: '1px solid #2d2d5f', color: '#fff', padding: 5, borderRadius: 4 }}
+                />
+            )}
           </div>
         ))}
         <div style={{ display: 'flex', gap: 10 }}>
@@ -42,16 +57,17 @@ function EditForm({ title, fields, initialData, onSave, onCancel }) {
 export default function AdminPanel() {
   const {
     stocks, addStock, updateStock, deleteStock,
+    companies, addCompany, updateCompany, deleteCompany,
     mfHoldings, addMF, updateMF, deleteMF,
     sips, addSIP, updateSIP, deleteSIP,
     ipos, addIPO, updateIPO, deleteIPO,
     orders, addOrder, updateOrder, deleteOrder,
   } = useData();
 
-  const [editing, setEditing] = useState(null); // { type, id, data }
+  const [editing, setEditing] = useState(null); // { type, action, id, data }
 
   // Common render for a list with edit/delete
-  const renderList = (title, items, type, fields, onAdd) => (
+  const renderList = (title, items, type, fields) => (
     <div style={{ marginBottom: 30 }}>
       <h4>{title}</h4>
       <button onClick={() => setEditing({ type, action: 'add', data: {} })} style={{ marginBottom: 10 }}>Add New</button>
@@ -71,6 +87,7 @@ export default function AdminPanel() {
               <td style={{ padding: 8, borderBottom: '1px solid #2d2d5f' }}>
                 <button onClick={() => setEditing({ type, action: 'edit', id: item.id, data: item })}>Edit</button>
                 <button onClick={() => {
+                  if (type === 'company') deleteCompany(item.id);
                   if (type === 'stock') deleteStock(item.id);
                   if (type === 'mf') deleteMF(item.id);
                   if (type === 'sip') deleteSIP(item.id);
@@ -89,6 +106,7 @@ export default function AdminPanel() {
   const handleSave = (formData) => {
     if (editing.action === 'add') {
       switch (editing.type) {
+        case 'company': addCompany(formData); break;
         case 'stock': addStock(formData); break;
         case 'mf': addMF(formData); break;
         case 'sip': addSIP(formData); break;
@@ -98,6 +116,7 @@ export default function AdminPanel() {
       }
     } else if (editing.action === 'edit') {
       switch (editing.type) {
+        case 'company': updateCompany(editing.id, formData); break;
         case 'stock': updateStock(editing.id, formData); break;
         case 'mf': updateMF(editing.id, formData); break;
         case 'sip': updateSIP(editing.id, formData); break;
@@ -110,12 +129,25 @@ export default function AdminPanel() {
   };
 
   // Field definitions for each entity
-  const stockFields = [
-    { name: 'label', label: 'Symbol' },
-    { name: 'price', label: 'Price', type: 'number' },
-    { name: 'changePct', label: 'Change %', type: 'number' },
-    { name: 'up', label: 'Up? (true/false)' },
+  const companyFields = [
+    { name: 'name', label: 'Company Name' },
+    { name: 'symbol', label: 'Symbol (Ticker)' },
+    { name: 'sector', label: 'Sector' },
   ];
+
+  // Prepare company options for Stock dropdown
+  const companyOptions = companies ? companies.map(c => ({ value: c.id, label: `${c.name} (${c.symbol})` })) : [];
+
+  const stockFields = [
+    // If adding, allow selecting company. If editing, maybe read-only label?
+    // Simplified: For adding, require Company ID. For display, show Label.
+    { name: 'label', label: 'Symbol', readOnly: true }, // Display only
+    { name: 'price', label: 'Price', type: 'number' },
+    { name: 'totalShares', label: 'Total Shares', type: 'number' },
+    // Only show Company dropdown when Adding
+    ...(editing?.action === 'add' ? [{ name: 'companyId', label: 'Company', type: 'select', options: companyOptions }] : []),
+  ];
+
   const mfFields = [
     { name: 'name', label: 'Fund Name' },
     { name: 'type', label: 'Category' },
@@ -151,12 +183,13 @@ export default function AdminPanel() {
   return (
     <div className="d-section fade-in">
       <div className="d-page-title">⚙️ Admin Panel</div>
-      <p>Manage all investment data below. Changes are immediately visible to all users (while using static data).</p>
+      <p>Manage companies and shares directly from the database.</p>
 
       {editing && (
         <EditForm
           title={`${editing.action === 'add' ? 'Add' : 'Edit'} ${editing.type}`}
           fields={
+            editing.type === 'company' ? companyFields :
             editing.type === 'stock' ? stockFields :
             editing.type === 'mf' ? mfFields :
             editing.type === 'sip' ? sipFields :
@@ -168,7 +201,11 @@ export default function AdminPanel() {
         />
       )}
 
-      {renderList('Stocks', stocks, 'stock', stockFields)}
+      {renderList('Companies', companies, 'company', companyFields)}
+      {renderList('Shares (Stocks)', stocks, 'stock', stockFields)}
+      
+      <hr style={{borderColor: '#2d2d5f', margin: '40px 0'}} />
+      <h3>Mock Data (Frontend Only)</h3>
       {renderList('Mutual Funds', mfHoldings, 'mf', mfFields)}
       {renderList('SIPs', sips, 'sip', sipFields)}
       {renderList('IPOs', ipos, 'ipo', ipoFields)}

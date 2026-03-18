@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
 // Initial static data (copied from your original Home.jsx)
 const initialPortfolio = {
@@ -37,18 +38,6 @@ const initialOrders = [
   { id: 4, sym: "WIPRO", type: "BUY", qty: 20, price: 445.0, status: "REJECTED", time: "2:10 PM" },
 ];
 
-// Initial stocks (used by SectionStocks and SectionWatchlist)
-const initialStocks = [
-  { label: "RELIANCE", price: 2841.0, changePct: 1.2, up: true },
-  { label: "TCS", price: 3905.5, changePct: -0.3, up: false },
-  { label: "INFY", price: 1495.0, changePct: 2.1, up: true },
-  { label: "WIPRO", price: 445.0, changePct: -0.8, up: false },
-  { label: "ITC", price: 425.3, changePct: 0.5, up: true },
-  { label: "BAJFIN", price: 6780.0, changePct: 1.5, up: true },
-  { label: "ADANI", price: 2450.0, changePct: -1.2, up: false },
-  { label: "HDFCBANK", price: 1580.0, changePct: 0.2, up: true },
-];
-
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
@@ -57,19 +46,193 @@ export const DataProvider = ({ children }) => {
   const [sips, setSips] = useState(initialSIPs);
   const [ipos, setIpos] = useState(initialIPOs);
   const [orders, setOrders] = useState(initialOrders);
-  const [stocks, setStocks] = useState(initialStocks);
+  
+  // Data fetched from backend
+  const [companies, setCompanies] = useState([]);
+  const [stocks, setStocks] = useState([]); // This will be 'shares' from backend
 
-  // CRUD helpers for admin (later can be replaced with API calls)
-  const addStock = (newStock) => {
-    setStocks(prev => [...prev, { ...newStock, id: Date.now() }]);
-  };
-  const updateStock = (id, updated) => {
-    setStocks(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
-  };
-  const deleteStock = (id) => {
-    setStocks(prev => prev.filter(s => s.id !== id));
+  const [token, setToken] = useState(localStorage.getItem("token"));
+
+  // Fetch data on load or when token changes
+  useEffect(() => {
+    if (token) {
+      fetchCompanies();
+      fetchShares();
+    }
+  }, [token]);
+
+  const login = (newToken, newRole, newUsername) => {
+    localStorage.setItem("token", newToken);
+    localStorage.setItem("role", newRole);
+    localStorage.setItem("username", newUsername);
+    setToken(newToken);
   };
 
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("username");
+    setToken(null);
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/companies`, {
+          headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch companies", err);
+    }
+  };
+
+  const fetchShares = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/shares`, {
+          headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Transform backend share data to frontend stock format
+        const transformed = data.map(share => ({
+          id: share.id,
+          label: share.companySymbol,
+          price: share.pricePerShare,
+          changePct: 0.0, // Backend doesn't have daily change yet
+          up: true,
+          companyId: share.companyId,
+          totalShares: share.totalShares
+        }));
+        setStocks(transformed);
+      }
+    } catch (err) {
+      console.error("Failed to fetch shares", err);
+    }
+  };
+
+  // CRUD for Companies
+  const addCompany = async (newCompany) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/companies`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(newCompany)
+      });
+      if (res.ok) {
+        fetchCompanies();
+      }
+    } catch (err) {
+      console.error("Failed to add company", err);
+    }
+  };
+
+  const updateCompany = async (id, updated) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/companies/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        fetchCompanies();
+      }
+    } catch (err) {
+      console.error("Failed to update company", err);
+    }
+  };
+
+  const deleteCompany = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/companies/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        fetchCompanies();
+      }
+    } catch (err) {
+      console.error("Failed to delete company", err);
+    }
+  };
+
+  // CRUD for Shares (Stocks)
+  const addStock = async (newShare) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/shares`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            companyId: newShare.companyId,
+            totalShares: newShare.totalShares,
+            pricePerShare: newShare.price
+        })
+      });
+      if (res.ok) {
+        fetchShares();
+      }
+    } catch (err) {
+      console.error("Failed to add share", err);
+    }
+  };
+
+  const updateStock = async (id, updated) => {
+    try {
+      // Backend expects ShareUpdateRequest: { pricePerShare, availableShares }
+      const payload = {
+          pricePerShare: updated.price,
+          // We don't expose availableShares in frontend edit yet, so maybe keep it or default
+          // For now, let's assume we are updating price. 
+          // If we need to update companyId or totalShares, backend API might need adjustment or we use different endpoint.
+          // Based on ShareController, PUT /api/shares/{id} takes ShareUpdateRequest
+      };
+      
+      const res = await fetch(`${API_BASE_URL}/api/shares/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        fetchShares();
+      }
+    } catch (err) {
+      console.error("Failed to update share", err);
+    }
+  };
+
+  const deleteStock = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/shares/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        fetchShares();
+      }
+    } catch (err) {
+      console.error("Failed to delete share", err);
+    }
+  };
+
+  // Keep other local state for now
   const addMF = (newMF) => {
     setMfHoldings(prev => [...prev, { ...newMF, id: Date.now() }]);
   };
@@ -118,6 +281,8 @@ export const DataProvider = ({ children }) => {
       ipos, addIPO, updateIPO, deleteIPO,
       orders, addOrder, updateOrder, deleteOrder,
       stocks, addStock, updateStock, deleteStock,
+      companies, addCompany, updateCompany, deleteCompany,
+      login, logout
     }}>
       {children}
     </DataContext.Provider>

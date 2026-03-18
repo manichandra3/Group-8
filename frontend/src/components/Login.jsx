@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../config";
+import { useData } from "../context/DataContext";
 
 /* Trust stats shown below logo */
 const TRUST_STATS = [
@@ -12,6 +14,7 @@ const TRUST_STATS = [
 export default function Login({ quotes }) {
 
   const navigate = useNavigate();
+  const { login } = useData();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +35,7 @@ export default function Login({ quotes }) {
 
       setLoading(true);
 
-      const res = await fetch("http://localhost:8081/auth/login", {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -51,9 +54,7 @@ export default function Login({ quotes }) {
         return;
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.user.username);
-      localStorage.setItem("role", data.user.role);
+      login(data.token, data.user.role, data.user.username);
 
       if (data.user.role === "ADMIN") {
         navigate("/admin");

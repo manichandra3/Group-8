@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useData } from "../context/DataContext";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@600;700&display=swap');
@@ -123,19 +124,6 @@ const INITIAL_ORDERS = [
   { id: "10005", user: "Amit", stock: "WIPRO", exchange: "BSE", qty: 15, price: "₹492", type: "BUY", time: "01:10 PM" },
 ];
 
-const INITIAL_STOCKS = [
-  { symbol: "RELIANCE", company: "Reliance Ind.", exchange: "NSE", price: "₹2,942", change: "+1.2%", circuit: "±5%", up: true },
-  { symbol: "TCS", company: "Tata Consultancy", exchange: "NSE", price: "₹3,810", change: "-0.4%", circuit: "±10%", up: false },
-  { symbol: "INFY", company: "Infosys", exchange: "BSE", price: "₹1,522", change: "+0.7%", circuit: "±5%", up: true },
-  { symbol: "HDFCBANK", company: "HDFC Bank", exchange: "NSE", price: "₹1,680", change: "-1.1%", circuit: "±5%", up: false },
-];
-
-const INITIAL_COMPANIES = [
-  { name: "Reliance Ind.", cin: "L17110MH1973PLC019786", sector: "Energy", shares: "6.77B", cap: "₹19.8L Cr" },
-  { name: "Tata Consultancy", cin: "L22210MH1995PLC084781", sector: "IT", shares: "3.65B", cap: "₹13.9L Cr" },
-  { name: "Infosys", cin: "L85110KA1981PLC013115", sector: "IT", shares: "4.19B", cap: "₹6.4L Cr" },
-];
-
 const NAV = [
   { id: "stats", icon: "▪", label: "Dashboard" },
   { id: "users", icon: "◈", label: "Users" },
@@ -145,45 +133,53 @@ const NAV = [
 ];
 
 export default function AdminDashboard({ onSignOut }) {
+  const {
+    stocks, addStock: ctxAddStock,
+    companies, addCompany: ctxAddCompany,
+    deleteCompany
+  } = useData();
+
   const [activeTab, setActiveTab] = useState("stats");
   const [users, setUsers] = useState(INITIAL_USERS);
   const [orders] = useState(INITIAL_ORDERS);
-  const [stocks, setStocks] = useState(INITIAL_STOCKS);
-  const [companies, setCompanies] = useState(INITIAL_COMPANIES);
   const [orderFilter, setOrderFilter] = useState("all");
 
-  const [stockForm, setStockForm] = useState({ symbol: "", price: "", exchange: "NSE", circuit: "±5%", sector: "Finance" });
+  const [stockForm, setStockForm] = useState({ companyId: "", price: "", totalShares: "" });
   const [stockSuccess, setStockSuccess] = useState(false);
 
-  const [compForm, setCompForm] = useState({ name: "", cin: "", sector: "Finance", shares: "", fv: "", date: "", desc: "" });
+  const [compForm, setCompForm] = useState({ name: "", symbol: "", sector: "Finance", desc: "" });
   const [compSuccess, setCompSuccess] = useState(false);
 
   const toggleUser = (id) => {
     setUsers(users.map(u => u.id === id ? { ...u, status: u.status === "Active" ? "Blocked" : "Active" } : u));
   };
 
-  const addStock = () => {
-    if (!stockForm.symbol || !stockForm.price) return;
-    const newStock = {
-      symbol: stockForm.symbol.toUpperCase(),
-      company: "—",
-      exchange: stockForm.exchange.split(" ")[0],
-      price: `₹${parseFloat(stockForm.price).toLocaleString("en-IN")}`,
-      change: "0.0%",
-      circuit: stockForm.circuit,
-      up: true,
-    };
-    setStocks([...stocks, newStock]);
-    setStockForm({ symbol: "", price: "", exchange: "NSE", circuit: "±5%", sector: "Finance" });
+  const handleAddStock = () => {
+    if (!stockForm.companyId || !stockForm.price) return;
+    
+    ctxAddStock({
+      companyId: stockForm.companyId,
+      price: parseFloat(stockForm.price),
+      totalShares: parseInt(stockForm.totalShares || 1000000)
+    });
+
+    setStockForm({ companyId: "", price: "", totalShares: "" });
     setStockSuccess(true);
     setTimeout(() => setStockSuccess(false), 2500);
   };
 
-  const addCompany = () => {
-    if (!compForm.name || !compForm.cin) return;
-    const sharesB = compForm.shares ? (parseInt(compForm.shares) / 1e9).toFixed(2) + "B" : "—";
-    setCompanies([...companies, { name: compForm.name, cin: compForm.cin, sector: compForm.sector, shares: sharesB, cap: "—" }]);
-    setCompForm({ name: "", cin: "", sector: "Finance", shares: "", fv: "", date: "", desc: "" });
+  const handleAddCompany = () => {
+    if (!compForm.name || !compForm.symbol) return;
+    
+    ctxAddCompany({
+      name: compForm.name,
+      symbol: compForm.symbol.toUpperCase(),
+      sector: compForm.sector,
+      description: compForm.desc,
+      active: true
+    });
+
+    setCompForm({ name: "", symbol: "", sector: "Finance", desc: "" });
     setCompSuccess(true);
     setTimeout(() => setCompSuccess(false), 2500);
   };
@@ -385,24 +381,22 @@ export default function AdminDashboard({ onSignOut }) {
               <div className="adm-topbar">
                 <div>
                   <div className="adm-page-title">Market Data</div>
-                  <div className="adm-page-heading">Manage Stocks</div>
+                  <div className="adm-page-heading">Manage Shares</div>
                 </div>
               </div>
               <div className="adm-two-col-sidebar">
                 <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Listed Stocks</span></div>
+                  <div className="adm-panel-header"><span className="adm-panel-title">Listed Shares</span></div>
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>Symbol</th><th>Company</th><th>Exchange</th><th>Price</th><th>Change</th><th>Circuit</th><th>Action</th></tr></thead>
+                      <thead><tr><th>Symbol</th><th>Company ID</th><th>Total Shares</th><th>Price</th><th>Action</th></tr></thead>
                       <tbody>
                         {stocks.map((s, i) => (
                           <tr key={i}>
-                            <td>{s.symbol}</td>
-                            <td>{s.company}</td>
-                            <td><span className={`chip ${s.exchange.toLowerCase()}`}>{s.exchange}</span></td>
+                            <td>{s.label}</td>
+                            <td>{s.companyId}</td>
+                            <td>{s.totalShares}</td>
                             <td>{s.price}</td>
-                            <td className={s.up ? "up" : "down"}>{s.change}</td>
-                            <td>{s.circuit}</td>
                             <td><button className="adm-btn ghost" style={{ fontSize: 9 }}>Edit</button></td>
                           </tr>
                         ))}
@@ -411,28 +405,24 @@ export default function AdminDashboard({ onSignOut }) {
                   </div>
                 </div>
                 <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Add New Stock</span></div>
+                  <div className="adm-panel-header"><span className="adm-panel-title">Add New Share</span></div>
                   <div className="adm-panel-body">
-                    {stockSuccess && <div className="adm-success">Stock added successfully!</div>}
+                    {stockSuccess && <div className="adm-success">Share added successfully!</div>}
                     <div className="adm-form">
-                      <div className="adm-form-group"><label className="adm-label">Ticker Symbol</label><input className="adm-input" placeholder="e.g. BAJAJFIN" value={stockForm.symbol} onChange={e => setStockForm({ ...stockForm, symbol: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Current Price (₹)</label><input className="adm-input" placeholder="e.g. 7200" type="number" value={stockForm.price} onChange={e => setStockForm({ ...stockForm, price: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Exchange</label>
-                        <select className="adm-select" value={stockForm.exchange} onChange={e => setStockForm({ ...stockForm, exchange: e.target.value })}>
-                          <option>NSE</option><option>BSE</option><option>NSE + BSE</option>
-                        </select>
+                      <div className="adm-form-group"><label className="adm-label">Company</label>
+                         <select 
+                           className="adm-select"
+                           value={stockForm.companyId} 
+                           onChange={e => setStockForm({ ...stockForm, companyId: e.target.value })}
+                         >
+                            <option value="">Select Company...</option>
+                            {companies.map(c => <option key={c.id} value={c.id}>{c.name} ({c.symbol})</option>)}
+                         </select>
                       </div>
-                      <div className="adm-form-group"><label className="adm-label">Circuit Limit</label>
-                        <select className="adm-select" value={stockForm.circuit} onChange={e => setStockForm({ ...stockForm, circuit: e.target.value })}>
-                          <option>±5%</option><option>±10%</option><option>±20%</option>
-                        </select>
-                      </div>
-                      <div className="adm-form-group"><label className="adm-label">Sector</label>
-                        <select className="adm-select" value={stockForm.sector} onChange={e => setStockForm({ ...stockForm, sector: e.target.value })}>
-                          <option>Finance</option><option>IT</option><option>Energy</option><option>FMCG</option><option>Pharma</option><option>Auto</option>
-                        </select>
-                      </div>
-                      <button className="adm-btn primary-full" onClick={addStock}>+ Add Stock</button>
+                      <div className="adm-form-group"><label className="adm-label">Price (₹)</label><input className="adm-input" placeholder="e.g. 7200" type="number" value={stockForm.price} onChange={e => setStockForm({ ...stockForm, price: e.target.value })} /></div>
+                      <div className="adm-form-group"><label className="adm-label">Total Shares</label><input className="adm-input" placeholder="e.g. 1000000" type="number" value={stockForm.totalShares} onChange={e => setStockForm({ ...stockForm, totalShares: e.target.value })} /></div>
+                      
+                      <button className="adm-btn primary-full" onClick={handleAddStock}>+ Add Share</button>
                     </div>
                   </div>
                 </div>
@@ -453,37 +443,41 @@ export default function AdminDashboard({ onSignOut }) {
                 <div className="adm-panel">
                   <div className="adm-panel-header"><span className="adm-panel-title">Registered Companies</span></div>
                   <table className="adm-table">
-                    <thead><tr><th>Company</th><th>CIN</th><th>Sector</th><th>Shares</th><th>Market Cap</th></tr></thead>
+                    <thead><tr><th>Company</th><th>Symbol</th><th>Sector</th><th>Action</th></tr></thead>
                     <tbody>
                       {companies.map((c, i) => (
                         <tr key={i}>
                           <td>{c.name}</td>
-                          <td style={{ fontSize: 10, color: "#4a5568" }}>{c.cin}</td>
+                          <td style={{ fontSize: 10, color: "#4a5568" }}>{c.symbol}</td>
                           <td>{c.sector}</td>
-                          <td>{c.shares}</td>
-                          <td>{c.cap}</td>
+                          <td>
+                            <button 
+                                className="adm-btn danger" 
+                                style={{fontSize: 9, padding: '4px 8px'}}
+                                onClick={() => deleteCompany(c.id)}
+                            >
+                                Delete
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
                 <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Add Company</span></div>
+                  <div className="adm-panel-header"><span className="adm-panel-title">Register Company</span></div>
                   <div className="adm-panel-body">
                     {compSuccess && <div className="adm-success">Company registered!</div>}
                     <div className="adm-form">
                       <div className="adm-form-group"><label className="adm-label">Company Name</label><input className="adm-input" placeholder="e.g. Bajaj Finance Ltd." value={compForm.name} onChange={e => setCompForm({ ...compForm, name: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">CIN Number</label><input className="adm-input" placeholder="L12345XX0000PLC000000" value={compForm.cin} onChange={e => setCompForm({ ...compForm, cin: e.target.value })} /></div>
+                      <div className="adm-form-group"><label className="adm-label">Ticker Symbol</label><input className="adm-input" placeholder="e.g. BAJFINANCE" value={compForm.symbol} onChange={e => setCompForm({ ...compForm, symbol: e.target.value })} /></div>
                       <div className="adm-form-group"><label className="adm-label">Sector</label>
                         <select className="adm-select" value={compForm.sector} onChange={e => setCompForm({ ...compForm, sector: e.target.value })}>
                           <option>Finance</option><option>IT</option><option>Energy</option><option>FMCG</option><option>Pharma</option><option>Auto</option><option>Telecom</option>
                         </select>
                       </div>
-                      <div className="adm-form-group"><label className="adm-label">Total Shares Issued</label><input className="adm-input" placeholder="e.g. 500000000" type="number" value={compForm.shares} onChange={e => setCompForm({ ...compForm, shares: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Face Value (₹)</label><input className="adm-input" placeholder="e.g. 2" type="number" value={compForm.fv} onChange={e => setCompForm({ ...compForm, fv: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Listing Date</label><input className="adm-input" type="date" value={compForm.date} onChange={e => setCompForm({ ...compForm, date: e.target.value })} /></div>
                       <div className="adm-form-group"><label className="adm-label">Description</label><textarea className="adm-textarea" placeholder="Brief company overview..." rows={3} value={compForm.desc} onChange={e => setCompForm({ ...compForm, desc: e.target.value })} /></div>
-                      <button className="adm-btn primary-full" onClick={addCompany}>+ Register Company</button>
+                      <button className="adm-btn primary-full" onClick={handleAddCompany}>+ Register Company</button>
                     </div>
                   </div>
                 </div>
