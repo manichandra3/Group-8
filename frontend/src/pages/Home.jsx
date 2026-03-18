@@ -965,6 +965,7 @@ function BackBtn({ onClick }) {
 export default function Home({ onLogout }) {
   const [tab, setTab]               = useState("dashboard");
   const [companies, setCompanies]   = useState([]);
+  const [shares,    setShares]      = useState([]);  // from stock-service /api/shares
   const [selected, setSelected]     = useState(null);
   const [search, setSearch]         = useState("");
   const [filter, setFilter]         = useState("All");
@@ -977,8 +978,16 @@ export default function Home({ onLogout }) {
   const fetchCompanies = async () => {
     try {
       setLoading(true);
-      const res = await STOCK_API.get("/companies");
-      setCompanies(res.data);
+      const [compRes, shareRes] = await Promise.allSettled([
+        STOCK_API.get("/companies"),
+        STOCK_API.get("/shares"),
+      ]);
+      if (compRes.status  === "fulfilled") {
+        if (compRes.value.data?.length > 0)
+          console.log("[StockAPI] Sample company:", compRes.value.data[0]);
+        setCompanies(compRes.value.data);
+      }
+      if (shareRes.status === "fulfilled") setShares(shareRes.value.data);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -986,12 +995,25 @@ export default function Home({ onLogout }) {
   useEffect(() => { fetchCompanies(); }, []);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [tab]);
 
-  const defaultLive = (c) => ({
-    companyId: c.id, companyName: c.name,
-    price: c.lastPrice||0, open: c.openingPrice||c.lastPrice||0,
-    high: c.dayHigh||c.lastPrice||0, low: c.dayLow||c.lastPrice||0,
-    dayChangePct:0, tickChangePct:0, history:[c.lastPrice||0],
-  });
+  const defaultLive = (c) => {
+    // Use pricePerShare from shares table as the best seed price,
+    // falling back to stock-service company fields then 0
+    const shareSeed = shareMap[c.id]?.pricePerShare ?? 0;
+    const price = shareSeed || (c.lastPrice ?? c.last_price ?? c.currentPrice ?? c.price ?? 0);
+    const open  = shareSeed || (c.openingPrice ?? c.opening_price ?? c.openPrice ?? price ?? 0);
+    const high  = c.dayHigh  ?? c.day_high  ?? price ?? 0;
+    const low   = c.dayLow   ?? c.day_low   ?? price ?? 0;
+    return {
+      companyId: c.id, companyName: c.name,
+      price, open, high, low,
+      dayChangePct: open > 0 ? ((price - open) / open) * 100 : 0,
+      tickChangePct: 0,
+      history: price > 0 ? [price] : [],
+    };
+  };
+
+  // Map companyId -> share listing for quick lookup in UI
+  const shareMap = Object.fromEntries(shares.map(s => [s.companyId, s]));
 
   const gainers            = companies.filter(c => (liveMap[c.id]?.dayChangePct??0) >= 0).length;
   const nearCircuit        = companies.filter(c => Math.abs(liveMap[c.id]?.dayChangePct??0) >= 15).length;
