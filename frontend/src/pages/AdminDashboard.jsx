@@ -1,496 +1,624 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { getCompanies, createCompany, deleteCompany, getShares, createShare } from "../api";
+import axios from "axios";
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@600;700&display=swap');
+const AUTH_API = axios.create({ baseURL: "http://localhost:8081" });
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function StatCard({ icon, label, value, accent }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: hov ? `linear-gradient(135deg, #0f1535, #12183d)` : "#0c1230",
+        border: `1px solid ${hov ? accent + "66" : "#1e2a50"}`,
+        borderRadius: 14,
+        padding: "22px 24px",
+        display: "flex", flexDirection: "column", gap: 10,
+        position: "relative", overflow: "hidden",
+        transition: "all 0.25s",
+        boxShadow: hov ? `0 8px 32px ${accent}18` : "none",
+        cursor: "default",
+      }}
+    >
+      {/* Corner glow */}
+      <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: `radial-gradient(circle, ${accent}18 0%, transparent 70%)`, transition: "opacity 0.3s", opacity: hov ? 1 : 0.5 }} />
+      {/* Top accent bar */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${accent}, transparent)`, borderRadius: "14px 14px 0 0", opacity: hov ? 1 : 0.4, transition: "opacity 0.25s" }} />
 
-  .adm-wrap { font-family: 'DM Mono', 'Courier New', monospace; background: #0a0c10; min-height: 100vh; color: #e2e8f0; display: flex; }
+      <span style={{ fontSize: 22 }}>{icon}</span>
+      <span style={{ fontSize: 30, fontWeight: 700, color: "#f0eaff", fontFamily: "'Playfair Display', serif", letterSpacing: -0.5 }}>{value}</span>
+      <span style={{ fontSize: 10, color: "#4a5580", fontFamily: "'DM Mono', monospace", textTransform: "uppercase", letterSpacing: 3 }}>{label}</span>
+    </div>
+  );
+}
 
-  .adm-sidebar { width: 220px; min-height: 100vh; background: #0d1117; border-right: 1px solid #1e2530; display: flex; flex-direction: column; flex-shrink: 0; }
-  .adm-logo { padding: 20px 18px 16px; border-bottom: 1px solid #1e2530; }
-  .adm-logo-text { font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #00d4aa; text-transform: uppercase; }
-  .adm-logo-sub { font-size: 10px; color: #4a5568; letter-spacing: 2px; margin-top: 2px; }
-  .adm-nav { padding: 12px 0; flex: 1; }
-  .adm-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 18px; font-size: 12px; letter-spacing: 1px; color: #4a5568; cursor: pointer; transition: all 0.15s; border-left: 2px solid transparent; font-family: inherit; background: transparent; border-right: none; border-top: none; border-bottom: none; width: 100%; text-align: left; }
-  .adm-nav-item:hover { color: #a0aec0; background: #111820; }
-  .adm-nav-item.active { color: #00d4aa; border-left-color: #00d4aa; background: #0d1f1a; }
-  .adm-sidebar-footer { padding: 16px 18px; border-top: 1px solid #1e2530; }
-  .adm-sidebar-footer-label { font-size: 10px; color: #2d3748; letter-spacing: 1px; }
-  .adm-sidebar-footer-status { font-size: 11px; color: #4a5568; margin-top: 4px; }
+// ─── Input Field ─────────────────────────────────────────────────────────────
+function Field({ placeholder, value, onChange, type = "text" }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        background: focused ? "#0a0f28" : "#080d22",
+        border: `1px solid ${focused ? "#7c5cfc88" : "#1e2a50"}`,
+        borderRadius: 8,
+        padding: "11px 14px",
+        color: "#c8d0f0",
+        fontFamily: "'DM Mono', monospace",
+        fontSize: 12,
+        outline: "none",
+        width: "100%",
+        boxSizing: "border-box",
+        transition: "all 0.2s",
+        boxShadow: focused ? "0 0 0 3px #7c5cfc18" : "none",
+      }}
+    />
+  );
+}
 
-  .adm-main { flex: 1; padding: 24px 28px; overflow-x: hidden; }
-  .adm-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-  .adm-page-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #4a5568; }
-  .adm-page-heading { font-size: 22px; font-weight: 700; color: #e2e8f0; margin-top: 2px; font-family: 'Space Grotesk', sans-serif; }
-  .adm-badge { background: #00d4aa18; border: 1px solid #00d4aa40; color: #00d4aa; font-size: 10px; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; }
+// ─── Primary Button ───────────────────────────────────────────────────────────
+function PrimaryBtn({ children, onClick, danger }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: danger
+          ? hov ? "rgba(255,80,100,0.25)" : "rgba(255,80,100,0.1)"
+          : hov ? "rgba(124,92,252,0.3)" : "rgba(124,92,252,0.12)",
+        border: `1px solid ${danger ? (hov ? "#ff5064cc" : "#ff506444") : (hov ? "#7c5cfccc" : "#7c5cfc55")}`,
+        color: danger ? "#ff8090" : (hov ? "#c4b0ff" : "#a48dff"),
+        padding: "11px 22px",
+        borderRadius: 8,
+        cursor: "pointer",
+        fontFamily: "'DM Mono', monospace",
+        fontWeight: 500,
+        fontSize: 12,
+        letterSpacing: 1,
+        transition: "all 0.2s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
-  .adm-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-  .adm-stat-card { background: #0d1117; border: 1px solid #1e2530; border-radius: 10px; padding: 18px; position: relative; overflow: hidden; }
-  .adm-stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
-  .adm-stat-card.green::before { background: #00d4aa; }
-  .adm-stat-card.blue::before { background: #4299e1; }
-  .adm-stat-card.amber::before { background: #f6ad55; }
-  .adm-stat-card.red::before { background: #fc8181; }
-  .adm-stat-label { font-size: 10px; letter-spacing: 2px; color: #4a5568; text-transform: uppercase; margin-bottom: 8px; }
-  .adm-stat-value { font-size: 26px; font-weight: 700; color: #e2e8f0; font-family: 'Space Grotesk', sans-serif; }
-  .adm-stat-change { font-size: 11px; margin-top: 6px; }
-  .up { color: #00d4aa; }
-  .down { color: #fc8181; }
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function Toast({ msg, visible }) {
+  return (
+    <div style={{
+      position: "fixed", bottom: 28, right: 28,
+      background: "linear-gradient(135deg, #0f1535, #14194a)",
+      border: "1px solid #7c5cfc66",
+      color: "#a48dff",
+      padding: "13px 22px",
+      borderRadius: 10,
+      fontFamily: "'DM Mono', monospace",
+      fontSize: 12,
+      letterSpacing: 1,
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0) scale(1)" : "translateY(10px) scale(0.96)",
+      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      pointerEvents: "none",
+      zIndex: 9999,
+      boxShadow: visible ? "0 8px 32px #7c5cfc22" : "none",
+      display: "flex", alignItems: "center", gap: 8,
+    }}>
+      <span style={{ color: "#7c5cfc", fontSize: 14 }}>✦</span> {msg}
+    </div>
+  );
+}
 
-  .adm-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .adm-two-col-sidebar { display: grid; grid-template-columns: 1fr 340px; gap: 18px; }
+// ─── Logout Confirm Overlay ───────────────────────────────────────────────────
+function LogoutConfirm({ onConfirm, onCancel }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      background: "rgba(4, 6, 20, 0.85)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 9000, backdropFilter: "blur(6px)",
+    }}>
+      <div style={{
+        background: "linear-gradient(145deg, #0d1235, #111840)",
+        border: "1px solid #ff506455",
+        borderTop: "2px solid #ff5064",
+        borderRadius: 16,
+        padding: "36px 44px",
+        textAlign: "center",
+        boxShadow: "0 24px 80px rgba(255,80,100,0.12)",
+        minWidth: 300,
+      }}>
+        <div style={{ fontSize: 28, marginBottom: 10 }}>⚠</div>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: "#f0eaff", fontWeight: 700, marginBottom: 8, letterSpacing: -0.3 }}>Sign Out</div>
+        <div style={{ fontSize: 12, color: "#4a5580", fontFamily: "'DM Mono', monospace", letterSpacing: 1, marginBottom: 26 }}>End this admin session?</div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <button onClick={onCancel} style={{ background: "transparent", border: "1px solid #1e2a50", color: "#4a5580", padding: "9px 22px", borderRadius: 8, fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, cursor: "pointer", transition: "all 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#c8d0f0"; e.currentTarget.style.borderColor = "#3a4870"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "#4a5580"; e.currentTarget.style.borderColor = "#1e2a50"; }}
+          >CANCEL</button>
+          <button onClick={onConfirm} style={{ background: "rgba(255,80,100,0.12)", border: "1px solid #ff506455", color: "#ff8090", padding: "9px 22px", borderRadius: 8, fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, cursor: "pointer", transition: "all 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,80,100,0.22)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,80,100,0.12)"; }}
+          >SIGN OUT</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  .adm-panel { background: #0d1117; border: 1px solid #1e2530; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
-  .adm-panel-header { padding: 16px 20px; border-bottom: 1px solid #1e2530; display: flex; align-items: center; justify-content: space-between; }
-  .adm-panel-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #a0aec0; }
-  .adm-panel-body { padding: 20px; }
+// ─── Section Card ─────────────────────────────────────────────────────────────
+function SectionCard({ title, accent, children }) {
+  return (
+    <div style={{
+      background: "#0a0e28",
+      border: "1px solid #1a2248",
+      borderRadius: 16,
+      padding: 26,
+      display: "flex", flexDirection: "column", gap: 18,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 3, height: 20, background: accent, borderRadius: 2, boxShadow: `0 0 8px ${accent}88` }} />
+        <h2 style={{ margin: 0, fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 600, color: "#4a5580", letterSpacing: 3, textTransform: "uppercase" }}>{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
 
-  .adm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .adm-table thead tr { border-bottom: 1px solid #1e2530; }
-  .adm-table th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #4a5568; font-weight: 400; font-family: inherit; }
-  .adm-table td { padding: 11px 12px; color: #a0aec0; border-bottom: 1px solid #1a1f28; }
-  .adm-table tr:last-child td { border-bottom: none; }
-  .adm-table tbody tr:hover td { background: #111820; color: #e2e8f0; }
+// ─── Small Delete Button ──────────────────────────────────────────────────────
+function DelBtn({ onClick }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: hov ? "rgba(255,80,100,0.18)" : "rgba(255,80,100,0.07)",
+        border: `1px solid ${hov ? "#ff506466" : "#ff506422"}`,
+        color: "#ff8090", borderRadius: 6, padding: "5px 12px",
+        cursor: "pointer", fontFamily: "'DM Mono', monospace",
+        fontSize: 10, fontWeight: 500, letterSpacing: 1, transition: "all 0.15s",
+      }}
+    >DELETE</button>
+  );
+}
 
-  .chip { font-size: 10px; padding: 3px 9px; border-radius: 4px; letter-spacing: 1px; font-weight: 600; display: inline-block; }
-  .chip.active { background: #00d4aa18; color: #00d4aa; border: 1px solid #00d4aa30; }
-  .chip.blocked { background: #fc818118; color: #fc8181; border: 1px solid #fc818130; }
-  .chip.buy { background: #00d4aa18; color: #00d4aa; border: 1px solid #00d4aa30; }
-  .chip.sell { background: #f6ad5518; color: #f6ad55; border: 1px solid #f6ad5530; }
-  .chip.nse { background: #4299e118; color: #4299e1; border: 1px solid #4299e130; }
-  .chip.bse { background: #9f7aea18; color: #9f7aea; border: 1px solid #9f7aea30; }
-
-  .adm-btn { font-family: inherit; font-size: 10px; letter-spacing: 1px; padding: 5px 12px; border-radius: 5px; cursor: pointer; border: none; transition: all 0.15s; text-transform: uppercase; }
-  .adm-btn.danger { background: #fc818118; color: #fc8181; border: 1px solid #fc818130; }
-  .adm-btn.danger:hover { background: #fc818130; }
-  .adm-btn.ghost { background: transparent; color: #4a5568; border: 1px solid #1e2530; }
-  .adm-btn.ghost:hover { color: #e2e8f0; border-color: #4a5568; }
-  .adm-btn.primary { background: #00d4aa20; color: #00d4aa; border: 1px solid #00d4aa50; }
-  .adm-btn.primary:hover { background: #00d4aa35; }
-  .adm-btn.primary-full { background: #00d4aa20; color: #00d4aa; border: 1px solid #00d4aa50; padding: 10px; width: 100%; margin-top: 6px; font-size: 11px; }
-  .adm-btn.primary-full:hover { background: #00d4aa35; }
-
-  .adm-form { display: flex; flex-direction: column; gap: 12px; }
-  .adm-form-group { display: flex; flex-direction: column; gap: 6px; }
-  .adm-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #4a5568; }
-  .adm-input { background: #070a0e; border: 1px solid #1e2530; border-radius: 6px; padding: 9px 12px; color: #e2e8f0; font-family: inherit; font-size: 12px; width: 100%; outline: none; transition: border 0.15s; }
-  .adm-input:focus { border-color: #00d4aa50; }
-  .adm-input::placeholder { color: #2d3748; }
-  .adm-textarea { background: #070a0e; border: 1px solid #1e2530; border-radius: 6px; padding: 9px 12px; color: #e2e8f0; font-family: inherit; font-size: 12px; width: 100%; outline: none; transition: border 0.15s; resize: none; }
-  .adm-textarea:focus { border-color: #00d4aa50; }
-  .adm-select { background: #070a0e; border: 1px solid #1e2530; border-radius: 6px; padding: 9px 12px; color: #e2e8f0; font-family: inherit; font-size: 12px; width: 100%; outline: none; transition: border 0.15s; }
-  .adm-select:focus { border-color: #00d4aa50; }
-
-  .adm-success { background: #00d4aa12; border: 1px solid #00d4aa30; border-radius: 6px; padding: 12px 16px; color: #00d4aa; font-size: 12px; margin-bottom: 14px; }
-
-  .adm-tab-row { display: flex; gap: 6px; }
-  .adm-tab { font-size: 10px; letter-spacing: 1px; padding: 5px 14px; border-radius: 5px; cursor: pointer; text-transform: uppercase; border: 1px solid #1e2530; color: #4a5568; background: transparent; font-family: inherit; transition: all 0.15s; }
-  .adm-tab.on { background: #00d4aa18; color: #00d4aa; border-color: #00d4aa40; }
-
-  .adm-search { background: #070a0e; border: 1px solid #1e2530; border-radius: 6px; padding: 8px 14px; display: flex; align-items: center; gap: 8px; width: 220px; }
-  .adm-search input { border: none; background: transparent; padding: 0; font-size: 12px; color: #e2e8f0; outline: none; font-family: inherit; width: 100%; }
-  .adm-search input::placeholder { color: #2d3748; }
-  .adm-search-icon { color: #2d3748; font-size: 14px; }
-
-  .adm-avatar { width: 28px; height: 28px; border-radius: 50%; background: #1a2535; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
-  .adm-user-row { display: flex; align-items: center; gap: 10px; }
-
-  .adm-market-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e2530; }
-  .adm-market-row:last-child { border-bottom: none; }
-  .adm-market-name { font-size: 12px; color: #a0aec0; }
-  .adm-market-val { font-size: 14px; font-weight: 600; color: #e2e8f0; }
-  .adm-market-chg { font-size: 11px; margin-left: 6px; }
-
-  .adm-table-wrap { overflow-x: auto; }
-
-  /* SIGN OUT BUTTON */
-  .adm-logout-btn { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: 1px solid #1e2530; color: #4a5568; font-family: inherit; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: all 0.15s; margin-top: 10px; }
-  .adm-logout-btn:hover { color: #fc8181; border-color: #fc818140; background: #fc818108; }
-`;
-
-const INITIAL_USERS = [
-  { id: 1, name: "Rahul Sharma", email: "rahul@gmail.com", joined: "Jan 12, 2024", status: "Active", color: "#4299e1" },
-  { id: 2, name: "Priya Mehta", email: "priya@gmail.com", joined: "Feb 3, 2024", status: "Blocked", color: "#fc8181" },
-  { id: 3, name: "Amit Patel", email: "amit@gmail.com", joined: "Mar 8, 2024", status: "Active", color: "#00d4aa" },
-];
-
-const INITIAL_ORDERS = [
-  { id: "10001", user: "Rahul", stock: "RELIANCE", exchange: "NSE", qty: 10, price: "₹2,942", type: "BUY", time: "09:31 AM" },
-  { id: "10002", user: "Amit", stock: "TCS", exchange: "BSE", qty: 5, price: "₹3,810", type: "SELL", time: "10:15 AM" },
-  { id: "10003", user: "Priya", stock: "INFY", exchange: "NSE", qty: 20, price: "₹1,522", type: "BUY", time: "11:02 AM" },
-  { id: "10004", user: "Rahul", stock: "HDFC", exchange: "NSE", qty: 3, price: "₹1,680", type: "SELL", time: "11:44 AM" },
-  { id: "10005", user: "Amit", stock: "WIPRO", exchange: "BSE", qty: 15, price: "₹492", type: "BUY", time: "01:10 PM" },
-];
-
-const INITIAL_STOCKS = [
-  { symbol: "RELIANCE", company: "Reliance Ind.", exchange: "NSE", price: "₹2,942", change: "+1.2%", circuit: "±5%", up: true },
-  { symbol: "TCS", company: "Tata Consultancy", exchange: "NSE", price: "₹3,810", change: "-0.4%", circuit: "±10%", up: false },
-  { symbol: "INFY", company: "Infosys", exchange: "BSE", price: "₹1,522", change: "+0.7%", circuit: "±5%", up: true },
-  { symbol: "HDFCBANK", company: "HDFC Bank", exchange: "NSE", price: "₹1,680", change: "-1.1%", circuit: "±5%", up: false },
-];
-
-const INITIAL_COMPANIES = [
-  { name: "Reliance Ind.", cin: "L17110MH1973PLC019786", sector: "Energy", shares: "6.77B", cap: "₹19.8L Cr" },
-  { name: "Tata Consultancy", cin: "L22210MH1995PLC084781", sector: "IT", shares: "3.65B", cap: "₹13.9L Cr" },
-  { name: "Infosys", cin: "L85110KA1981PLC013115", sector: "IT", shares: "4.19B", cap: "₹6.4L Cr" },
-];
-
-const NAV = [
-  { id: "stats", icon: "▪", label: "Dashboard" },
-  { id: "users", icon: "◈", label: "Users" },
-  { id: "orders", icon: "≡", label: "Orders" },
-  { id: "stocks", icon: "◉", label: "Stocks" },
-  { id: "company", icon: "⬡", label: "Companies" },
-];
-
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function AdminDashboard({ onSignOut }) {
-  const [activeTab, setActiveTab] = useState("stats");
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [orders] = useState(INITIAL_ORDERS);
-  const [stocks, setStocks] = useState(INITIAL_STOCKS);
-  const [companies, setCompanies] = useState(INITIAL_COMPANIES);
-  const [orderFilter, setOrderFilter] = useState("all");
+  const [companies, setCompanies] = useState([]);
+  const [shares, setShares] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showLogout, setShowLogout] = useState(false);
 
-  const [stockForm, setStockForm] = useState({ symbol: "", price: "", exchange: "NSE", circuit: "±5%", sector: "Finance" });
-  const [stockSuccess, setStockSuccess] = useState(false);
+  const [compForm, setCompForm] = useState({ name: "", sector: "IT", desc: "" });
+  const [shareForm, setShareForm] = useState({ companyId: "", price: "", total: "100000", available: "80000" });
 
-  const [compForm, setCompForm] = useState({ name: "", cin: "", sector: "Finance", shares: "", fv: "", date: "", desc: "" });
-  const [compSuccess, setCompSuccess] = useState(false);
+  const [toast, setToast] = useState({ msg: "", visible: false });
+  const toastRef = useRef(null);
 
-  const toggleUser = (id) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === "Active" ? "Blocked" : "Active" } : u));
+  const showToast = (msg) => {
+    setToast({ msg, visible: true });
+    if (toastRef.current) clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2600);
   };
 
-  const addStock = () => {
-    if (!stockForm.symbol || !stockForm.price) return;
-    const newStock = {
-      symbol: stockForm.symbol.toUpperCase(),
-      company: "—",
-      exchange: stockForm.exchange.split(" ")[0],
-      price: `₹${parseFloat(stockForm.price).toLocaleString("en-IN")}`,
-      change: "0.0%",
-      circuit: stockForm.circuit,
-      up: true,
-    };
-    setStocks([...stocks, newStock]);
-    setStockForm({ symbol: "", price: "", exchange: "NSE", circuit: "±5%", sector: "Finance" });
-    setStockSuccess(true);
-    setTimeout(() => setStockSuccess(false), 2500);
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [cRes, sRes, uRes] = await Promise.allSettled([
+        getCompanies(),
+        getShares(),
+        AUTH_API.get("/auth/users"),
+      ]);
+      if (cRes.status === "fulfilled") setCompanies(cRes.value.data);
+      if (sRes.status === "fulfilled") setShares(sRes.value.data);
+      if (uRes.status === "fulfilled") setUsers(uRes.value.data);
+    } catch (err) { console.error(err); }
   };
 
-  const addCompany = () => {
-    if (!compForm.name || !compForm.cin) return;
-    const sharesB = compForm.shares ? (parseInt(compForm.shares) / 1e9).toFixed(2) + "B" : "—";
-    setCompanies([...companies, { name: compForm.name, cin: compForm.cin, sector: compForm.sector, shares: sharesB, cap: "—" }]);
-    setCompForm({ name: "", cin: "", sector: "Finance", shares: "", fv: "", date: "", desc: "" });
-    setCompSuccess(true);
-    setTimeout(() => setCompSuccess(false), 2500);
+  const addCompany = async () => {
+    if (!compForm.name.trim()) return;
+    try {
+      await createCompany({ name: compForm.name, symbol: compForm.name.substring(0, 4).toUpperCase(), sector: compForm.sector, description: compForm.desc, logoUrl: "" });
+      const res = await getCompanies();
+      setCompanies(res.data);
+      setCompForm({ name: "", sector: "IT", desc: "" });
+      showToast("Company registered");
+    } catch (err) { console.error(err); }
   };
 
-  const filteredOrders = orderFilter === "all" ? orders : orders.filter(o => o.type.toLowerCase() === orderFilter);
+  const addShare = async () => {
+    if (!shareForm.price || !shareForm.companyId) return;
+    try {
+      await createShare({ companyId: parseInt(shareForm.companyId), totalShares: parseInt(shareForm.total), availableShares: parseInt(shareForm.available), pricePerShare: parseFloat(shareForm.price) });
+      const res = await getShares();
+      setShares(res.data);
+      setShareForm({ companyId: "", price: "", total: "100000", available: "80000" });
+      showToast("Share listing added");
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteCompany(id);
+      setCompanies(cs => cs.filter(c => c.id !== id));
+      showToast("Company removed");
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSignOut = () => { setShowLogout(false); if (onSignOut) onSignOut(); };
+
+  const totalMarketValue = shares.reduce((sum, s) => sum + s.pricePerShare * s.totalShares, 0);
+
+  const tabs = [
+    { id: "overview",  label: "Overview",  icon: "◈" },
+    { id: "companies", label: "Companies", icon: "⬡" },
+    { id: "shares",    label: "Shares",    icon: "◎" },
+    { id: "users",     label: "Users",     icon: "◉" },
+  ];
+
+  // Table header style
+  const TH = { textAlign: "left", padding: "8px 14px", fontSize: 10, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, fontFamily: "'DM Mono', monospace" };
+  const TD = { padding: "13px 14px", borderBottom: "1px solid #0e1430", fontFamily: "'DM Mono', monospace", fontSize: 12 };
+  const rowHover = (e, on) => e.currentTarget.style.background = on ? "rgba(124,92,252,0.04)" : "transparent";
+
+  const selectStyle = {
+    background: "#080d22", border: "1px solid #1e2a50", borderRadius: 8,
+    padding: "11px 14px", color: "#c8d0f0", fontFamily: "'DM Mono', monospace",
+    fontSize: 12, outline: "none", width: "100%", cursor: "pointer",
+  };
 
   return (
     <>
-      <style>{styles}</style>
-      <div className="adm-wrap">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap');
+        * { box-sizing: border-box; }
+        ::placeholder { color: #1e2a50 !important; }
+        select option { background: #080d22; color: #c8d0f0; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1a2248; border-radius: 4px; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulseViolet { 0%,100%{opacity:1;box-shadow:0 0 4px #7c5cfc;} 50%{opacity:0.5;box-shadow:none;} }
+        .rfade { animation: fadeUp 0.3s ease both; }
+      `}</style>
 
-        {/* Sidebar */}
-        <div className="adm-sidebar">
-          <div className="adm-logo">
-            <div className="adm-logo-text">NSE Admin</div>
-            <div className="adm-logo-sub">Control Panel v2.1</div>
+      {showLogout && <LogoutConfirm onConfirm={handleSignOut} onCancel={() => setShowLogout(false)} />}
+      <Toast msg={toast.msg} visible={toast.visible} />
+
+      <div style={{ background: "#060919", minHeight: "100vh", color: "#c8d0f0", fontFamily: "'DM Mono', monospace", display: "flex" }}>
+
+        {/* ── Sidebar ── */}
+        <div style={{
+          width: 230,
+          background: "linear-gradient(180deg, #080d22 0%, #060919 100%)",
+          borderRight: "1px solid #0e1635",
+          padding: "28px 14px",
+          display: "flex", flexDirection: "column", gap: 2, flexShrink: 0,
+          position: "relative",
+        }}>
+          {/* Sidebar right glow line */}
+          <div style={{ position: "absolute", top: 0, right: -1, width: 1, height: "40%", background: "linear-gradient(180deg, #7c5cfc55, transparent)" }} />
+
+          {/* Logo */}
+          <div style={{ padding: "0 10px 26px" }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 22, color: "#f0eaff", letterSpacing: -0.5, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#7c5cfc", boxShadow: "0 0 10px #7c5cfc", display: "inline-block", flexShrink: 0 }} />
+              Nexus
+            </div>
+            <div style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 4, textTransform: "uppercase", marginTop: 4 }}>Admin Console</div>
           </div>
-          <nav className="adm-nav">
-            {NAV.map(n => (
-              <button
-                key={n.id}
-                className={`adm-nav-item${activeTab === n.id ? " active" : ""}`}
-                onClick={() => setActiveTab(n.id)}
-              >
-                <span style={{ width: 16, textAlign: "center" }}>{n.icon}</span>
-                {n.label}
-              </button>
-            ))}
-          </nav>
-          <div className="adm-sidebar-footer">
-            <div className="adm-sidebar-footer-label">SYSTEM</div>
-            <div className="adm-sidebar-footer-status">● Live &nbsp;|&nbsp; NSE Feed</div>
-            <button className="adm-logout-btn" onClick={() => onSignOut && onSignOut()}>
+
+          {/* Nav items */}
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+              background: activeTab === t.id ? "rgba(124,92,252,0.1)" : "transparent",
+              border: "none",
+              borderRadius: 8,
+              color: activeTab === t.id ? "#a48dff" : "#2e3d6a",
+              padding: "11px 14px",
+              cursor: "pointer",
+              fontFamily: "'DM Mono', monospace",
+              fontWeight: 500,
+              fontSize: 11,
+              letterSpacing: 2,
+              textTransform: "uppercase",
+              display: "flex", alignItems: "center", gap: 12,
+              textAlign: "left", width: "100%",
+              transition: "all 0.18s",
+              borderLeft: activeTab === t.id ? "2px solid #7c5cfc" : "2px solid transparent",
+            }}
+              onMouseEnter={e => { if (activeTab !== t.id) { e.currentTarget.style.color = "#7c8ab0"; e.currentTarget.style.background = "rgba(124,92,252,0.04)"; } }}
+              onMouseLeave={e => { if (activeTab !== t.id) { e.currentTarget.style.color = "#2e3d6a"; e.currentTarget.style.background = "transparent"; } }}
+            >
+              <span style={{ fontSize: 13, opacity: activeTab === t.id ? 1 : 0.5 }}>{t.icon}</span>
+              {t.label}
+              {t.id === "users" && users.length > 0 && (
+                <span style={{ marginLeft: "auto", background: "rgba(124,92,252,0.2)", color: "#a48dff", fontSize: 9, borderRadius: 4, padding: "2px 7px" }}>{users.length}</span>
+              )}
+            </button>
+          ))}
+
+          {/* Bottom — admin info + logout */}
+          <div style={{ marginTop: "auto", padding: "16px 10px 0", borderTop: "1px solid #0e1635" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg, #7c5cfc, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>A</div>
+              <div>
+                <div style={{ fontSize: 11, color: "#c8d0f0", fontWeight: 500 }}>Admin</div>
+                <div style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 1 }}>Super User</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLogout(true)}
+              style={{ width: "100%", background: "transparent", border: "1px solid #1e2a50", borderRadius: 7, color: "#2e3d6a", padding: "8px 12px", cursor: "pointer", fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "#ff8090"; e.currentTarget.style.borderColor = "#ff506444"; e.currentTarget.style.background = "rgba(255,80,100,0.06)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "#2e3d6a"; e.currentTarget.style.borderColor = "#1e2a50"; e.currentTarget.style.background = "transparent"; }}
+            >
               <span>⏻</span> Sign Out
             </button>
           </div>
         </div>
 
-        {/* Main */}
-        <div className="adm-main">
+        {/* ── Main ── */}
+        <div style={{ flex: 1, padding: "30px 34px", overflowY: "auto" }}>
 
-          {/* DASHBOARD */}
-          {activeTab === "stats" && (
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
             <div>
-              <div className="adm-topbar">
-                <div>
-                  <div className="adm-page-title">Overview</div>
-                  <div className="adm-page-heading">Platform Dashboard</div>
-                </div>
-                <div className="adm-badge">LIVE</div>
+              <h1 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: "#f0eaff", letterSpacing: -0.5 }}>
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h1>
+              <p style={{ margin: "5px 0 0", fontSize: 10, color: "#2e3d6a", letterSpacing: 2, fontFamily: "'DM Mono', monospace", textTransform: "uppercase" }}>
+                {new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+              </p>
+            </div>
+            <button onClick={fetchAll} style={{
+              background: "rgba(124,92,252,0.08)", border: "1px solid #7c5cfc33",
+              color: "#4a5580", borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+              fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", transition: "all 0.18s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = "#a48dff"; e.currentTarget.style.borderColor = "#7c5cfc77"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "#4a5580"; e.currentTarget.style.borderColor = "#7c5cfc33"; }}
+            >↻ Refresh</button>
+          </div>
+
+          {/* ── OVERVIEW ── */}
+          {activeTab === "overview" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+                <StatCard icon="⬡" label="Companies"     value={companies.length} accent="#7c5cfc" />
+                <StatCard icon="◎" label="Share Listings" value={shares.length}    accent="#38bdf8" />
+                <StatCard icon="◉" label="Total Users"    value={users.length}     accent="#fb923c" />
+                <StatCard icon="₹" label="Market Value"   value={`₹${(totalMarketValue / 1e6).toFixed(1)}M`} accent="#a855f7" />
               </div>
-              <div className="adm-stats-grid">
-                {[
-                  { label: "Total Users", value: "1,245", change: "▲ 8.2% this month", dir: "up", color: "green" },
-                  { label: "Total Orders", value: "8,932", change: "▲ 12.4% this week", dir: "up", color: "blue" },
-                  { label: "Total Volume", value: "₹4.2Cr", change: "▲ 3.1% today", dir: "up", color: "amber" },
-                  { label: "Active Traders", value: "842", change: "▼ 2.0% vs yesterday", dir: "down", color: "red" },
-                ].map(s => (
-                  <div key={s.label} className={`adm-stat-card ${s.color}`}>
-                    <div className="adm-stat-label">{s.label}</div>
-                    <div className="adm-stat-value">{s.value}</div>
-                    <div className={`adm-stat-change ${s.dir}`}>{s.change}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="adm-two-col">
-                <div className="adm-panel">
-                  <div className="adm-panel-header">
-                    <span className="adm-panel-title">Recent Orders</span>
-                    <span className="chip active">Live</span>
-                  </div>
-                  <table className="adm-table">
-                    <thead><tr><th>Stock</th><th>User</th><th>Type</th><th>Qty</th></tr></thead>
-                    <tbody>
-                      {orders.slice(0, 4).map(o => (
-                        <tr key={o.id}>
-                          <td>{o.stock}</td>
-                          <td>{o.user}</td>
-                          <td><span className={`chip ${o.type.toLowerCase()}`}>{o.type}</span></td>
-                          <td>{o.qty}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Market Summary</span></div>
-                  <div className="adm-panel-body">
-                    {[
-                      { name: "NIFTY 50", val: "22,415", chg: "+0.8%", up: true },
-                      { name: "SENSEX", val: "73,852", chg: "+1.1%", up: true },
-                      { name: "BANK NIFTY", val: "48,120", chg: "-0.3%", up: false },
-                      { name: "MIDCAP", val: "44,310", chg: "+0.5%", up: true },
-                    ].map(m => (
-                      <div key={m.name} className="adm-market-row">
-                        <span className="adm-market-name">{m.name}</span>
-                        <div>
-                          <span className="adm-market-val">{m.val}</span>
-                          <span className={`adm-market-chg ${m.up ? "up" : "down"}`}>{m.chg}</span>
-                        </div>
-                      </div>
+
+              <SectionCard title="Recent Companies" accent="#7c5cfc">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #0e1430" }}>
+                      {["Symbol", "Name", "Sector", "Action"].map(h => <th key={h} style={TH}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {companies.slice(0, 5).map((c, i) => (
+                      <tr key={c.id} className="rfade" style={{ animationDelay: `${i * 55}ms` }}
+                        onMouseEnter={e => rowHover(e, true)} onMouseLeave={e => rowHover(e, false)}>
+                        <td style={{ ...TD }}>
+                          <span style={{ background: "rgba(124,92,252,0.12)", color: "#a48dff", padding: "3px 10px", borderRadius: 5, fontSize: 11, letterSpacing: 1 }}>{c.symbol || c.name?.substring(0, 4).toUpperCase()}</span>
+                        </td>
+                        <td style={{ ...TD, color: "#e8e0ff", fontWeight: 500 }}>{c.name}</td>
+                        <td style={{ ...TD, color: "#2e3d6a" }}>{c.sector}</td>
+                        <td style={{ ...TD }}><DelBtn onClick={() => handleDelete(c.id)} /></td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
-              </div>
+                    {companies.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center", padding: 30, color: "#1e2a50", fontSize: 12 }}>No companies yet</td></tr>}
+                  </tbody>
+                </table>
+              </SectionCard>
+
+              <SectionCard title="Recent Users" accent="#fb923c">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #0e1430" }}>
+                      {["#", "Name", "Email", "Role"].map(h => <th key={h} style={TH}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.slice(0, 5).map((u, i) => (
+                      <tr key={u.id || i} className="rfade" style={{ animationDelay: `${i * 55}ms` }}
+                        onMouseEnter={e => rowHover(e, true)} onMouseLeave={e => rowHover(e, false)}>
+                        <td style={{ ...TD, color: "#1e2a50" }}>{String(i + 1).padStart(2, "0")}</td>
+                        <td style={{ ...TD, color: "#e8e0ff", fontWeight: 500 }}>{u.name || u.username || "—"}</td>
+                        <td style={{ ...TD, color: "#2e3d6a" }}>{u.email || "—"}</td>
+                        <td style={{ ...TD }}>
+                          <span style={{ background: u.role === "ADMIN" ? "rgba(168,85,247,0.15)" : "rgba(251,146,60,0.1)", color: u.role === "ADMIN" ? "#c084fc" : "#fb923c", padding: "3px 10px", borderRadius: 5, fontSize: 10, letterSpacing: 1 }}>
+                            {u.role || "USER"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {users.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center", padding: 30, color: "#1e2a50" }}>No users found</td></tr>}
+                  </tbody>
+                </table>
+              </SectionCard>
             </div>
           )}
 
-          {/* USERS */}
+          {/* ── COMPANIES ── */}
+          {activeTab === "companies" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <SectionCard title="Add Company" accent="#7c5cfc">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: 12, alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Name *</label>
+                    <Field placeholder="e.g. Reliance" value={compForm.name} onChange={e => setCompForm({ ...compForm, name: e.target.value })} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Sector</label>
+                    <select value={compForm.sector} onChange={e => setCompForm({ ...compForm, sector: e.target.value })} style={selectStyle}>
+                      {["IT","Finance","Healthcare","Energy","FMCG","Telecom","Auto","Infra","Retail"].map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Description</label>
+                    <Field placeholder="Brief description…" value={compForm.desc} onChange={e => setCompForm({ ...compForm, desc: e.target.value })} />
+                  </div>
+                  <PrimaryBtn onClick={addCompany}>+ Add</PrimaryBtn>
+                </div>
+              </SectionCard>
+
+              <SectionCard title={`All Companies (${companies.length})`} accent="#7c5cfc">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #0e1430" }}>
+                      {["Symbol","Name","Sector","Description","Action"].map(h => <th key={h} style={TH}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {companies.map((c, i) => (
+                      <tr key={c.id} className="rfade" style={{ animationDelay: `${i * 40}ms` }}
+                        onMouseEnter={e => rowHover(e, true)} onMouseLeave={e => rowHover(e, false)}>
+                        <td style={{ ...TD }}>
+                          <span style={{ background: "rgba(124,92,252,0.12)", color: "#a48dff", padding: "3px 10px", borderRadius: 5, fontSize: 11, letterSpacing: 1 }}>{c.symbol || c.name?.substring(0, 4).toUpperCase()}</span>
+                        </td>
+                        <td style={{ ...TD, color: "#e8e0ff", fontWeight: 500 }}>{c.name}</td>
+                        <td style={{ ...TD }}>
+                          <span style={{ background: "rgba(56,189,248,0.1)", color: "#38bdf8", padding: "3px 10px", borderRadius: 5, fontSize: 10, letterSpacing: 1 }}>{c.sector}</span>
+                        </td>
+                        <td style={{ ...TD, color: "#2e3d6a", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.description || "—"}</td>
+                        <td style={{ ...TD }}><DelBtn onClick={() => handleDelete(c.id)} /></td>
+                      </tr>
+                    ))}
+                    {companies.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", padding: 36, color: "#1e2a50" }}>No companies added yet</td></tr>}
+                  </tbody>
+                </table>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ── SHARES ── */}
+          {activeTab === "shares" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <SectionCard title="Add Share Listing" accent="#38bdf8">
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 12, alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Company *</label>
+                    <select value={shareForm.companyId} onChange={e => setShareForm({ ...shareForm, companyId: e.target.value })} style={selectStyle}>
+                      <option value="">Select company…</option>
+                      {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Price (₹) *</label>
+                    <Field type="number" placeholder="e.g. 1500" value={shareForm.price} onChange={e => setShareForm({ ...shareForm, price: e.target.value })} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Total Shares</label>
+                    <Field type="number" placeholder="100000" value={shareForm.total} onChange={e => setShareForm({ ...shareForm, total: e.target.value })} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 9, color: "#2e3d6a", letterSpacing: 3, textTransform: "uppercase" }}>Available</label>
+                    <Field type="number" placeholder="80000" value={shareForm.available} onChange={e => setShareForm({ ...shareForm, available: e.target.value })} />
+                  </div>
+                  <PrimaryBtn onClick={addShare}>+ Add</PrimaryBtn>
+                </div>
+              </SectionCard>
+
+              <SectionCard title={`Share Listings (${shares.length})`} accent="#38bdf8">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #0e1430" }}>
+                      {["#","Price / Share","Total Shares","Available","Market Cap","Float"].map(h => <th key={h} style={TH}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shares.map((s, i) => {
+                      const cap = s.pricePerShare * s.totalShares;
+                      const pct = ((s.availableShares / s.totalShares) * 100).toFixed(1);
+                      return (
+                        <tr key={s.id} className="rfade" style={{ animationDelay: `${i * 40}ms` }}
+                          onMouseEnter={e => rowHover(e, true)} onMouseLeave={e => rowHover(e, false)}>
+                          <td style={{ ...TD, color: "#1e2a50" }}>{String(i + 1).padStart(2, "0")}</td>
+                          <td style={{ ...TD, color: "#7dd3fc", fontSize: 14, fontWeight: 500 }}>₹{Number(s.pricePerShare).toLocaleString("en-IN")}</td>
+                          <td style={{ ...TD, color: "#c8d0f0" }}>{Number(s.totalShares).toLocaleString()}</td>
+                          <td style={{ ...TD, color: "#38bdf8" }}>{Number(s.availableShares).toLocaleString()}</td>
+                          <td style={{ ...TD, color: "#c084fc" }}>₹{(cap / 1e6).toFixed(2)}M</td>
+                          <td style={{ ...TD }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ flex: 1, height: 4, background: "#0e1430", borderRadius: 2 }}>
+                                <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, #7c5cfc, #38bdf8)", borderRadius: 2 }} />
+                              </div>
+                              <span style={{ fontSize: 10, color: "#2e3d6a", minWidth: 34 }}>{pct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {shares.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", padding: 36, color: "#1e2a50" }}>No share listings yet</td></tr>}
+                  </tbody>
+                </table>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ── USERS ── */}
           {activeTab === "users" && (
-            <div>
-              <div className="adm-topbar">
-                <div>
-                  <div className="adm-page-title">Management</div>
-                  <div className="adm-page-heading">Users</div>
-                </div>
-                <div className="adm-search">
-                  <span className="adm-search-icon">⌕</span>
-                  <input placeholder="Search users..." />
-                </div>
-              </div>
-              <div className="adm-panel">
-                <div className="adm-panel-header">
-                  <span className="adm-panel-title">Registered Users</span>
-                  <span style={{ fontSize: 11, color: "#4a5568" }}>{users.length} total</span>
-                </div>
-                <table className="adm-table">
-                  <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>
-                    {users.map(u => (
-                      <tr key={u.id}>
-                        <td>
-                          <div className="adm-user-row">
-                            <div className="adm-avatar" style={{ color: u.color }}>{u.name[0]}</div>
-                            {u.name}
-                          </div>
-                        </td>
-                        <td>{u.email}</td>
-                        <td>{u.joined}</td>
-                        <td><span className={`chip ${u.status.toLowerCase()}`}>{u.status}</span></td>
-                        <td>
-                          <button
-                            className={`adm-btn ${u.status === "Active" ? "danger" : "primary"}`}
-                            onClick={() => toggleUser(u.id)}
-                          >
-                            {u.status === "Active" ? "Block" : "Unblock"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ORDERS */}
-          {activeTab === "orders" && (
-            <div>
-              <div className="adm-topbar">
-                <div>
-                  <div className="adm-page-title">Transactions</div>
-                  <div className="adm-page-heading">Orders</div>
-                </div>
-                <div className="adm-tab-row">
-                  {["all", "buy", "sell"].map(f => (
-                    <button key={f} className={`adm-tab${orderFilter === f ? " on" : ""}`} onClick={() => setOrderFilter(f)}>
-                      {f}
-                    </button>
+            <SectionCard title={`All Users (${users.length})`} accent="#fb923c">
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #0e1430" }}>
+                    {["#","Name","Email","Role","Status"].map(h => <th key={h} style={TH}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u, i) => (
+                    <tr key={u.id || i} className="rfade" style={{ animationDelay: `${i * 30}ms` }}
+                      onMouseEnter={e => rowHover(e, true)} onMouseLeave={e => rowHover(e, false)}>
+                      <td style={{ ...TD, color: "#1e2a50" }}>{String(i + 1).padStart(2, "0")}</td>
+                      <td style={{ ...TD }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{
+                            width: 30, height: 30, borderRadius: 8,
+                            background: `hsl(${((u.id || i) * 53 + 240) % 360}, 55%, 35%)`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0,
+                          }}>{(u.name || u.username || "U")[0].toUpperCase()}</div>
+                          <span style={{ color: "#e8e0ff", fontWeight: 500 }}>{u.name || u.username || "—"}</span>
+                        </div>
+                      </td>
+                      <td style={{ ...TD, color: "#2e3d6a" }}>{u.email || "—"}</td>
+                      <td style={{ ...TD }}>
+                        <span style={{ background: u.role === "ADMIN" ? "rgba(168,85,247,0.15)" : "rgba(251,146,60,0.1)", color: u.role === "ADMIN" ? "#c084fc" : "#fb923c", padding: "3px 10px", borderRadius: 5, fontSize: 10, letterSpacing: 1 }}>
+                          {u.role || "USER"}
+                        </span>
+                      </td>
+                      <td style={{ ...TD }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#7c5cfc", animation: "pulseViolet 2.5s infinite", animationDelay: `${i * 180}ms` }} />
+                          <span style={{ fontSize: 10, color: "#2e3d6a", letterSpacing: 1 }}>Active</span>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </div>
-              <div className="adm-panel">
-                <div className="adm-panel-header"><span className="adm-panel-title">All Orders</span></div>
-                <table className="adm-table">
-                  <thead><tr><th>Order ID</th><th>User</th><th>Stock</th><th>Exchange</th><th>Qty</th><th>Price</th><th>Type</th><th>Time</th></tr></thead>
-                  <tbody>
-                    {filteredOrders.map(o => (
-                      <tr key={o.id}>
-                        <td>#{o.id}</td>
-                        <td>{o.user}</td>
-                        <td>{o.stock}</td>
-                        <td><span className={`chip ${o.exchange.toLowerCase()}`}>{o.exchange}</span></td>
-                        <td>{o.qty}</td>
-                        <td>{o.price}</td>
-                        <td><span className={`chip ${o.type.toLowerCase()}`}>{o.type}</span></td>
-                        <td>{o.time}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  {users.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", padding: 36, color: "#1e2a50" }}>No users found. Check if API is running.</td></tr>}
+                </tbody>
+              </table>
+            </SectionCard>
           )}
-
-          {/* STOCKS */}
-          {activeTab === "stocks" && (
-            <div>
-              <div className="adm-topbar">
-                <div>
-                  <div className="adm-page-title">Market Data</div>
-                  <div className="adm-page-heading">Manage Stocks</div>
-                </div>
-              </div>
-              <div className="adm-two-col-sidebar">
-                <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Listed Stocks</span></div>
-                  <div className="adm-table-wrap">
-                    <table className="adm-table">
-                      <thead><tr><th>Symbol</th><th>Company</th><th>Exchange</th><th>Price</th><th>Change</th><th>Circuit</th><th>Action</th></tr></thead>
-                      <tbody>
-                        {stocks.map((s, i) => (
-                          <tr key={i}>
-                            <td>{s.symbol}</td>
-                            <td>{s.company}</td>
-                            <td><span className={`chip ${s.exchange.toLowerCase()}`}>{s.exchange}</span></td>
-                            <td>{s.price}</td>
-                            <td className={s.up ? "up" : "down"}>{s.change}</td>
-                            <td>{s.circuit}</td>
-                            <td><button className="adm-btn ghost" style={{ fontSize: 9 }}>Edit</button></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Add New Stock</span></div>
-                  <div className="adm-panel-body">
-                    {stockSuccess && <div className="adm-success">Stock added successfully!</div>}
-                    <div className="adm-form">
-                      <div className="adm-form-group"><label className="adm-label">Ticker Symbol</label><input className="adm-input" placeholder="e.g. BAJAJFIN" value={stockForm.symbol} onChange={e => setStockForm({ ...stockForm, symbol: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Current Price (₹)</label><input className="adm-input" placeholder="e.g. 7200" type="number" value={stockForm.price} onChange={e => setStockForm({ ...stockForm, price: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Exchange</label>
-                        <select className="adm-select" value={stockForm.exchange} onChange={e => setStockForm({ ...stockForm, exchange: e.target.value })}>
-                          <option>NSE</option><option>BSE</option><option>NSE + BSE</option>
-                        </select>
-                      </div>
-                      <div className="adm-form-group"><label className="adm-label">Circuit Limit</label>
-                        <select className="adm-select" value={stockForm.circuit} onChange={e => setStockForm({ ...stockForm, circuit: e.target.value })}>
-                          <option>±5%</option><option>±10%</option><option>±20%</option>
-                        </select>
-                      </div>
-                      <div className="adm-form-group"><label className="adm-label">Sector</label>
-                        <select className="adm-select" value={stockForm.sector} onChange={e => setStockForm({ ...stockForm, sector: e.target.value })}>
-                          <option>Finance</option><option>IT</option><option>Energy</option><option>FMCG</option><option>Pharma</option><option>Auto</option>
-                        </select>
-                      </div>
-                      <button className="adm-btn primary-full" onClick={addStock}>+ Add Stock</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* COMPANIES */}
-          {activeTab === "company" && (
-            <div>
-              <div className="adm-topbar">
-                <div>
-                  <div className="adm-page-title">Registry</div>
-                  <div className="adm-page-heading">Company Details</div>
-                </div>
-              </div>
-              <div className="adm-two-col-sidebar">
-                <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Registered Companies</span></div>
-                  <table className="adm-table">
-                    <thead><tr><th>Company</th><th>CIN</th><th>Sector</th><th>Shares</th><th>Market Cap</th></tr></thead>
-                    <tbody>
-                      {companies.map((c, i) => (
-                        <tr key={i}>
-                          <td>{c.name}</td>
-                          <td style={{ fontSize: 10, color: "#4a5568" }}>{c.cin}</td>
-                          <td>{c.sector}</td>
-                          <td>{c.shares}</td>
-                          <td>{c.cap}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="adm-panel">
-                  <div className="adm-panel-header"><span className="adm-panel-title">Add Company</span></div>
-                  <div className="adm-panel-body">
-                    {compSuccess && <div className="adm-success">Company registered!</div>}
-                    <div className="adm-form">
-                      <div className="adm-form-group"><label className="adm-label">Company Name</label><input className="adm-input" placeholder="e.g. Bajaj Finance Ltd." value={compForm.name} onChange={e => setCompForm({ ...compForm, name: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">CIN Number</label><input className="adm-input" placeholder="L12345XX0000PLC000000" value={compForm.cin} onChange={e => setCompForm({ ...compForm, cin: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Sector</label>
-                        <select className="adm-select" value={compForm.sector} onChange={e => setCompForm({ ...compForm, sector: e.target.value })}>
-                          <option>Finance</option><option>IT</option><option>Energy</option><option>FMCG</option><option>Pharma</option><option>Auto</option><option>Telecom</option>
-                        </select>
-                      </div>
-                      <div className="adm-form-group"><label className="adm-label">Total Shares Issued</label><input className="adm-input" placeholder="e.g. 500000000" type="number" value={compForm.shares} onChange={e => setCompForm({ ...compForm, shares: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Face Value (₹)</label><input className="adm-input" placeholder="e.g. 2" type="number" value={compForm.fv} onChange={e => setCompForm({ ...compForm, fv: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Listing Date</label><input className="adm-input" type="date" value={compForm.date} onChange={e => setCompForm({ ...compForm, date: e.target.value })} /></div>
-                      <div className="adm-form-group"><label className="adm-label">Description</label><textarea className="adm-textarea" placeholder="Brief company overview..." rows={3} value={compForm.desc} onChange={e => setCompForm({ ...compForm, desc: e.target.value })} /></div>
-                      <button className="adm-btn primary-full" onClick={addCompany}>+ Register Company</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
     </>

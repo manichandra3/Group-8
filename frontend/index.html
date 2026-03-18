@@ -2,9 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>ShareBazaar</title>
+
+    <!--
+      FIX: sockjs-client is a legacy CommonJS library that references Node's
+      `global` variable. Vite runs in a browser context where `global` doesn't
+      exist, causing "ReferenceError: global is not defined".
+
+      This one-liner polyfills it before any JS bundle loads.
+    -->
+    <script>window.global = window;</script>
+
   </head>
   <body>
     <div id="root"></div>

@@ -11,6 +11,8 @@ import com.sharebazaar.core.shared.exception.GlobalException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class AuthService {
 
@@ -52,6 +54,18 @@ public class AuthService {
                 savedUser.getEmail(),
                 savedUser.getRole().name()
         );
+    }
+
+    public List<UserDto> getAllUsers() {
+        return userRepository.findByRole(Role.USER)
+                .stream()
+                .map(user -> new UserDto(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getRole().name()
+                ))
+                .toList();
     }
 
     public AuthResponse login(LoginRequest request) {

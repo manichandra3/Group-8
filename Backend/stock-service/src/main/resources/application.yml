@@ -1,0 +1,26 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: stock-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sharebazaar
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false
+
+jwt:
+  secret: ${JWT_SECRET:YTJiM2M0ZDVlNmY3ZzhoOWkwajFrMmwzbTRuNW82cDdxOHI5czB0MXUydjN3NHg1eTZ6N2E4Yjlj}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

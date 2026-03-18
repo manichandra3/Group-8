@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
 import Login from "./components/Login";
 import Register from "./components/Register";
@@ -60,120 +60,93 @@ function TickerBar({ quotes, loading }) {
 
 /* ─── Protected Route ─── */
 function ProtectedRoute({ children, roleRequired }) {
-
   const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
+  const role  = localStorage.getItem("role");
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (roleRequired && role !== roleRequired) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!token) return <Navigate to="/login" replace />;
+  if (roleRequired && role !== roleRequired) return <Navigate to="/login" replace />;
 
   return children;
 }
 
+/* ─── Shared logout ─── */
+function useLogout() {
+  const navigate = useNavigate();
+  return () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("username");
+    navigate("/login", { replace: true });
+  };
+}
+
 /* ─── Root App ─── */
 export default function App() {
-  const navigate = useNavigate();
+  const logout   = useLogout();
+  const location = useLocation();
 
-  const [quotes, setQuotes] = useState([]);
+  const [quotes, setQuotes]               = useState([]);
   const [tickerLoading, setTickerLoading] = useState(true);
 
-  /* Fetch market data */
+  // Pages where the App-level ticker + BgCanvas should be hidden
+  // because those pages have their own full-screen layout
+  const FULLSCREEN_ROUTES = ["/home", "/admin"];
+  const isFullscreen = FULLSCREEN_ROUTES.some(r => location.pathname.startsWith(r));
+
   useEffect(() => {
-
     let mounted = true;
-
     const load = async () => {
       try {
         const data = await fetchAllQuotes();
-
         if (mounted && data.length > 0) {
           setQuotes(data);
           setTickerLoading(false);
         }
-
       } catch {
         if (mounted) setTickerLoading(false);
       }
     };
-
     load();
     const interval = setInterval(load, 60000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-
+    return () => { mounted = false; clearInterval(interval); };
   }, []);
 
   return (
-
     <DataProvider>
+      {/* Only show background orbs + ticker on login/register pages */}
+      {!isFullscreen && <BgCanvas />}
+      {!isFullscreen && <TickerBar quotes={quotes} loading={tickerLoading} />}
 
-      <BgCanvas />
-
-      <TickerBar quotes={quotes} loading={tickerLoading} />
-
-      <div className="page-wrap">
-
+      {/*
+        On fullscreen routes (home/admin), page-wrap must NOT constrain height.
+        On login/register, keep existing page-wrap behaviour.
+      */}
+      <div className={isFullscreen ? "" : "page-wrap"}>
         <Routes>
+          <Route path="/login"    element={<Login quotes={quotes} />} />
+          <Route path="/register" element={<Register />} />
 
-          {/* LOGIN */}
-          <Route
-            path="/login"
-            element={<Login quotes={quotes} />}
-          />
-
-          {/* REGISTER */}
-          <Route
-            path="/register"
-            element={<Register />}
-          />
-
-          {/* USER DASHBOARD */}
-          {/* USER DASHBOARD */}
           <Route
             path="/home"
             element={
               <ProtectedRoute roleRequired="USER">
-                <Home
-                  quotes={quotes}
-                  onLogout={() => {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("role");
-                    localStorage.removeItem("username");
-                    navigate("/login");
-                  }}
-                />
+                <Home onLogout={logout} />
               </ProtectedRoute>
             }
           />
 
-          {/* ADMIN DASHBOARD */}
           <Route
             path="/admin"
             element={
               <ProtectedRoute roleRequired="ADMIN">
-                <AdminDashboard onSignOut={() => navigate("/login")} />
+                <AdminDashboard onSignOut={logout} />
               </ProtectedRoute>
             }
           />
 
-          {/* DEFAULT */}
-          <Route
-            path="*"
-            element={<Navigate to="/login" />}
-          />
-
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-
       </div>
-
     </DataProvider>
   );
 }

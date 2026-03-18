@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin(origins = "http://localhost:5173")
@@ -29,5 +31,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    // ✅ NEW API
+    @GetMapping("/users")
+    public List<UserDto> getAllUsers() {
+        return authService.getAllUsers();
     }
 }
