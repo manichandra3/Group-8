@@ -1,134 +1,88 @@
 // src/hooks/useExchange.js
-//
-// Manages the full lifecycle of the WebSocket price feed:
-//   1. Fetches /api/prices/snapshot on mount   → seeds liveMap with current prices
-//   2. Connects to ws://localhost:8082/ws       → subscribes to /topic/prices
-//   3. Each incoming PriceTick updates liveMap  → triggers re-render in consumers
-//   4. Reconnects automatically on disconnect
-//   5. Cleans up on unmount
+// Connects to trade_service on port 8083
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import axios from "axios";
 
-const API = axios.create({ baseURL: "http://localhost:8082/api" });
+export const TRADE_API = axios.create({ baseURL: "http://localhost:8083" });
 
-const MAX_HISTORY = 40; // rolling sparkline window
+const WS_URL       = "http://localhost:8083/ws";
+const SNAPSHOT_URL = "http://localhost:8083/api/prices/snapshot";
+const MAX_HISTORY  = 60;
 
-/**
- * @returns {object} liveMap  — { [shareId]: { price, open, high, low, dayChangePct, tickChangePct, history } }
- * @returns {boolean} connected — whether WS is currently connected
- * @returns {number}  tickCount — increments on every tick (use as dependency to trigger re-renders)
- */
 export function useExchange() {
-  // liveMap is stored in a ref so the STOMP callback always has the latest
-  // version without needing to be recreated (avoids stale closure bug)
-  const liveMapRef  = useRef({});
-  const stompRef    = useRef(null);
-
+  const liveMapRef = useRef({});
+  const stompRef   = useRef(null);
   const [tickCount,  setTickCount]  = useState(0);
   const [connected,  setConnected]  = useState(false);
 
-  // ── 1. Seed from REST snapshot ─────────────────────────────────────────────
   const seedFromSnapshot = useCallback(async () => {
     try {
-      const res = await API.get("/prices/snapshot");
-      // snapshot returns { shareId: currentPrice, ... }
-      const map = res.data;
-      Object.entries(map).forEach(([id, price]) => {
-        const p = parseFloat(price);
-        const sid = parseInt(id, 10);
-        if (!liveMapRef.current[sid]) {
-          liveMapRef.current[sid] = {
-            price:         p,
-            open:          p,
-            high:          p,
-            low:           p,
-            dayChangePct:  0,
+      const res = await axios.get(SNAPSHOT_URL);
+      res.data.forEach(tick => {
+        const id = tick.companyId;
+        if (!liveMapRef.current[id]) {
+          liveMapRef.current[id] = {
+            companyId:     id,
+            companyName:   tick.companyName,
+            price:         tick.price,
+            open:          tick.open,
+            high:          tick.high,
+            low:           tick.low,
+            dayChangePct:  tick.dayChangePct,
             tickChangePct: 0,
-            history:       [p],
+            history:       [tick.price],
           };
         }
       });
       setTickCount(c => c + 1);
     } catch (e) {
-      console.warn("Price snapshot fetch failed — will rely on WS ticks:", e);
+      console.warn("[Exchange] Snapshot failed:", e.message);
     }
   }, []);
 
-  // ── 2. Connect STOMP over SockJS ──────────────────────────────────────────
   const connect = useCallback(() => {
     if (stompRef.current?.active) return;
-
     const client = new Client({
-      // SockJS factory — lets STOMP use SockJS as its transport
-      webSocketFactory: () => new SockJS("http://localhost:8082/ws"),
-
-      reconnectDelay: 5000,       // auto-reconnect every 5s if disconnected
-
+      webSocketFactory: () => new SockJS(WS_URL),
+      reconnectDelay: 5000,
       onConnect: () => {
         setConnected(true);
-        console.log("[Exchange] WebSocket connected");
-
-        // ── Subscribe to price feed ──────────────────────────────────────
         client.subscribe("/topic/prices", (message) => {
           try {
             const tick = JSON.parse(message.body);
-            // tick shape: { shareId, price, open, high, low, dayChangePct, tickChangePct }
-
-            const sid   = tick.shareId;
-            const price = parseFloat(tick.price);
-            const prev  = liveMapRef.current[sid];
-
-            // Build rolling history
-            const history = prev?.history ? [...prev.history, price] : [price];
+            const id   = tick.companyId;
+            const prev = liveMapRef.current[id];
+            const history = prev?.history ? [...prev.history, tick.price] : [tick.price];
             if (history.length > MAX_HISTORY) history.shift();
-
-            liveMapRef.current[sid] = {
-              price,
-              open:          parseFloat(tick.open),
-              high:          parseFloat(tick.high),
-              low:           parseFloat(tick.low),
+            liveMapRef.current[id] = {
+              companyId:     id,
+              companyName:   tick.companyName,
+              price:         tick.price,
+              open:          tick.open,
+              high:          tick.high,
+              low:           tick.low,
               dayChangePct:  tick.dayChangePct,
               tickChangePct: tick.tickChangePct,
               history,
             };
-
-            // Trigger React re-render
             setTickCount(c => c + 1);
-          } catch (err) {
-            console.error("[Exchange] Tick parse error:", err);
-          }
+          } catch (err) { console.error("[Exchange] Tick parse error:", err); }
         });
       },
-
-      onDisconnect: () => {
-        setConnected(false);
-        console.log("[Exchange] WebSocket disconnected");
-      },
-
-      onStompError: (frame) => {
-        console.error("[Exchange] STOMP error:", frame);
-      },
+      onDisconnect: () => setConnected(false),
+      onStompError: (f) => console.error("[Exchange] STOMP error:", f.headers?.message),
     });
-
     client.activate();
     stompRef.current = client;
   }, []);
 
-  // ── 3. Lifecycle ──────────────────────────────────────────────────────────
   useEffect(() => {
     seedFromSnapshot().then(() => connect());
-
-    return () => {
-      stompRef.current?.deactivate();
-    };
+    return () => stompRef.current?.deactivate();
   }, [seedFromSnapshot, connect]);
 
-  return {
-    liveMap:  liveMapRef.current,  // NOT reactive itself — use tickCount to trigger renders
-    connected,
-    tickCount,
-  };
+  return { liveMap: liveMapRef.current, connected, tickCount };
 }
