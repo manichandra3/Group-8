@@ -158,6 +158,7 @@ check_port 8761 || PORTS_OK=false
 check_port 8080 || PORTS_OK=false
 check_port 8081 || PORTS_OK=false
 check_port 8082 || PORTS_OK=false
+check_port 8083 || PORTS_OK=false
 
 if [ "$PORTS_OK" = false ]; then
     echo -e "${YELLOW}Some ports are in use. You may need to stop existing services first.${NC}"
@@ -215,6 +216,17 @@ wait_for_service "Stock Service" 8082
 
 echo ""
 echo "=========================================="
+echo "Step 5: Starting Portfolio Service"
+echo "=========================================="
+cd portfolio-service
+mvn spring-boot:run > ../logs/portfolio-service.log 2>&1 &
+PORTFOLIO_SERVICE_PID=$!
+cd ..
+echo -e "${BLUE}Portfolio Service PID: $PORTFOLIO_SERVICE_PID${NC}"
+wait_for_service "Portfolio Service" 8083
+
+echo ""
+echo "=========================================="
 echo -e "${GREEN}✓ All services started successfully!${NC}"
 echo "=========================================="
 echo ""
@@ -223,12 +235,14 @@ echo "  - Eureka Dashboard: http://localhost:8761"
 echo "  - API Gateway:      http://localhost:8080"
 echo "  - Auth Service:     http://localhost:8081/swagger-ui.html"
 echo "  - Stock Service:    http://localhost:8082/swagger-ui.html"
+echo "  - Portfolio Service: http://localhost:8083"
 echo ""
 echo "Process IDs:"
 echo "  - Eureka Server:     $EUREKA_PID"
 echo "  - API Gateway:       $API_GATEWAY_PID"
 echo "  - Auth Service:      $AUTH_SERVICE_PID"
 echo "  - Stock Service:     $STOCK_SERVICE_PID"
+echo "  - Portfolio Service: $PORTFOLIO_SERVICE_PID"
 echo ""
 echo "Logs are available in the 'logs' directory"
 echo "  - To view all logs: tail -f logs/*.log"
@@ -245,4 +259,5 @@ EUREKA_PID=$EUREKA_PID
 API_GATEWAY_PID=$API_GATEWAY_PID
 AUTH_SERVICE_PID=$AUTH_SERVICE_PID
 STOCK_SERVICE_PID=$STOCK_SERVICE_PID
+PORTFOLIO_SERVICE_PID=$PORTFOLIO_SERVICE_PID
 EOF

@@ -7,6 +7,7 @@ spring:
   cloud:
     gateway:
       globalcors:
+        add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
             allowedOriginPatterns:
@@ -35,6 +36,10 @@ spring:
           uri: lb://stock-service
           predicates:
             - Path=/api/companies/**,/api/shares/**
+        - id: portfolio-service
+          uri: lb://portfolio-service
+          predicates:
+            - Path=/api/portfolios/**,/api/transactions/**
 
 eureka:
   client:
