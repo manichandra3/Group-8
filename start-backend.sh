@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$ROOT_DIR/Backend"
-RUN_DIR="$ROOT_DIR/.run"
-LOG_DIR="$ROOT_DIR/.logs"
+# Source the common variables and functions
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-mkdir -p "$RUN_DIR" "$LOG_DIR"
+BACKEND_DIR="$ROOT_DIR/Backend"
 
 SERVICES=(
   "discovery-server|discovery-server/pom.xml|8761"
@@ -37,11 +35,6 @@ wait_for_port() {
   return 1
 }
 
-is_pid_running() {
-  local pid="$1"
-  kill -0 "$pid" 2>/dev/null
-}
-
 start_service() {
   local service_name="$1"
   local pom_path="$2"
@@ -62,7 +55,8 @@ start_service() {
   echo "[start] $service_name on port $port"
   (
     cd "$BACKEND_DIR"
-    nohup bash ./mvnw -f "$pom_path" spring-boot:run >"$log_file" 2>&1 &
+    # Added 'exec' so the Java process replaces the bash wrapper, allowing clean shutdowns
+    nohup bash -c "exec ./mvnw -f \"$pom_path\" spring-boot:run" >"$log_file" 2>&1 &
     echo $! >"$pid_file"
   )
 }
@@ -74,6 +68,10 @@ echo "[prep] Installing shared parent POM and core-shared library"
   bash ./mvnw -f core-shared/pom.xml -DskipTests install >/dev/null
 )
 
+echo "[prep] Starting PostgreSQL with Docker Compose"
+(cd "$BACKEND_DIR" && docker compose up -d postgres)
+wait_for_port "localhost" "5433" "60"
+
 for service in "${SERVICES[@]}"; do
   IFS='|' read -r name pom port <<<"$service"
   start_service "$name" "$pom" "$port"
@@ -81,6 +79,9 @@ for service in "${SERVICES[@]}"; do
   # Ensure discovery is available before starting Eureka clients.
   if [[ "$name" == "discovery-server" ]]; then
     wait_for_port "localhost" "8761" "90" || true
+  else
+    # Prevent CPU thrashing when compiling multiple Spring Boot apps simultaneously
+    sleep 2
   fi
 done
 

@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source the common variables and functions
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
 FRONTEND_DIR="$ROOT_DIR/frontend"
-RUN_DIR="$ROOT_DIR/.run"
-LOG_DIR="$ROOT_DIR/.logs"
 PID_FILE="$RUN_DIR/frontend.pid"
 LOG_FILE="$LOG_DIR/frontend.log"
-
-mkdir -p "$RUN_DIR" "$LOG_DIR"
-
-is_pid_running() {
-  local pid="$1"
-  kill -0 "$pid" 2>/dev/null
-}
 
 if [[ -f "$PID_FILE" ]]; then
   existing_pid="$(cat "$PID_FILE")"
@@ -24,8 +17,9 @@ if [[ -f "$PID_FILE" ]]; then
   rm -f "$PID_FILE"
 fi
 
-if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
-  echo "[prep] Installing frontend dependencies"
+# Install dependencies if node_modules is missing OR if package.json has been updated
+if [[ ! -d "$FRONTEND_DIR/node_modules" || "$FRONTEND_DIR/package.json" -nt "$FRONTEND_DIR/node_modules" ]]; then
+  echo "[prep] Installing/updating frontend dependencies"
   (cd "$FRONTEND_DIR" && npm install)
 fi
 

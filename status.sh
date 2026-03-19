@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUN_DIR="$ROOT_DIR/.run"
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 if [[ ! -d "$RUN_DIR" ]]; then
   echo "[info] No tracked processes."
@@ -15,7 +14,7 @@ for pid_file in "$RUN_DIR"/*.pid; do
   service_name="$(basename "$pid_file" .pid)"
   pid="$(cat "$pid_file")"
 
-  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+  if [[ -n "$pid" ]] && is_pid_running "$pid"; then
     echo "[up] $service_name (pid $pid)"
   else
     echo "[down] $service_name (stale pid file)"
