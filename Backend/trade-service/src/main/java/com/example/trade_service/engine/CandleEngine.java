@@ -50,7 +50,7 @@ public class CandleEngine {
             candle.setLow(low);
             candle.setStartTime(start);
             candle.setEndTime(now);
-            candle.setInterval("1m");
+            candle.setInterval("5m");
 
             candleRepo.save(candle);
         }

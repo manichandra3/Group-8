@@ -10,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/candles")
+@CrossOrigin(origins = "http://localhost:5173")   // ← was missing, browser was blocking it
 public class CandleController {
 
     @Autowired

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useExchange, TRADE_API, getLive } from "../hooks/useExchange";
 
@@ -14,6 +14,8 @@ PORTFOLIO_API.interceptors.request.use(cfg => {
   }
   return cfg;
 });
+
+const AUTH_API = axios.create({ baseURL: "http://localhost:8081" });
 
 const teal   = "#00d4a0";
 const red    = "#ff5a6a";
@@ -34,7 +36,6 @@ function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
 }
 
-// Default liveData for companies not yet in the trade-service
 function defaultLive(c) {
   const price = c.lastPrice || 0;
   const open  = c.openingPrice || price;
@@ -52,23 +53,50 @@ function defaultLive(c) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ERROR BOUNDARY — prevents one crash from blanking the whole screen
+// ─────────────────────────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("[ErrorBoundary]", error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding:"32px", textAlign:"center", color:"#ff5a6a", fontFamily:"'DM Mono',monospace" }}>
+          <div style={{ fontSize:24, marginBottom:10 }}>⚠</div>
+          <div style={{ fontSize:12, letterSpacing:2, marginBottom:8 }}>RENDER ERROR</div>
+          <div style={{ fontSize:10, color:"#3a4a6a", marginBottom:16 }}>{this.state.error?.message}</div>
+          <button onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ background:"rgba(255,90,106,0.1)", border:"1px solid rgba(255,90,106,0.3)", color:"#ff5a6a", padding:"8px 18px", borderRadius:7, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:2 }}>
+            RETRY
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // INTERACTIVE CHART
 // ─────────────────────────────────────────────────────────────────────────────
-function InteractiveChart({ history = [], open, high, low, width = 700, height = 180 }) {
+function InteractiveChart({ history = [], open, high, low, height = 180 }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
+  const COORD_W = 1000;
 
-  if (history.length < 2) {
+  const PAD_L = 80, PAD_R = 14, PAD_T = 14, PAD_B = 28;
+  const W = COORD_W - PAD_L - PAD_R;
+  const H = height - PAD_T - PAD_B;
+
+  // Guard: need at least 2 data points and valid dimensions
+  if (history.length < 2 || W <= 0 || H <= 0) {
     return (
-      <div style={{ width, height, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
+      <div style={{ width:"100%", height, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
         AWAITING DATA…
       </div>
     );
   }
-
-  const PAD_L = 58, PAD_R = 14, PAD_T = 14, PAD_B = 28;
-  const W = width - PAD_L - PAD_R;
-  const H = height - PAD_T - PAD_B;
 
   const pMin = Math.min(...history) * 0.9985;
   const pMax = Math.max(...history) * 1.0015;
@@ -93,23 +121,26 @@ function InteractiveChart({ history = [], open, high, low, width = 700, height =
   const xStep  = Math.max(1, Math.floor(history.length / 6));
   const xTicks = history.map((_,i)=>i).filter(i => i % xStep === 0 || i === history.length-1);
   const openY  = open > 0 ? py(Math.min(Math.max(open, pMin), pMax)) : null;
-  const uid    = `ch${width}`;
+  const uid    = `ch${COORD_W}`;
 
   const handleMove = useCallback((e) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const mx = e.clientX - rect.left;
-    if (mx < PAD_L || mx > PAD_L + W) { setHover(null); return; }
-    const idx = Math.round(((mx - PAD_L) / W) * (history.length - 1));
+    // Convert from screen px to SVG coordinate space
+    const scaleX = COORD_W / rect.width;
+    const svgMx  = mx * scaleX;
+    if (svgMx < PAD_L || svgMx > PAD_L + W) { setHover(null); return; }
+    const idx = Math.round(((svgMx - PAD_L) / W) * (history.length - 1));
     const i   = Math.max(0, Math.min(history.length - 1, idx));
     const price = history[i];
     const pct   = ((price - history[0]) / history[0]) * 100;
     setHover({ x: px(i), y: py(price), idx: i, price, pct });
-  }, [history]);
+  }, [history, W, H]);
 
   return (
     <div style={{ position:"relative", userSelect:"none" }}>
-      <svg ref={svgRef} width={width} height={height} viewBox={`0 0 ${width} ${height}`}
+      <svg ref={svgRef} width="100%" height={height} viewBox={`0 0 ${COORD_W} ${height}`}
         style={{ display:"block", cursor:"crosshair" }}
         onMouseMove={handleMove} onMouseLeave={() => setHover(null)}>
         <defs>
@@ -164,7 +195,7 @@ function InteractiveChart({ history = [], open, high, low, width = 700, height =
       {hover && (() => {
         const hUp = hover.pct >= 0;
         const c   = hUp ? teal : red;
-        const flip= hover.x > width * 0.65;
+        const flip= hover.x > COORD_W * 0.65;
         return (
           <div style={{ position:"absolute", top:Math.max(4,hover.y-52), left:flip?hover.x-148:hover.x+10, background:"#0a1525", border:`1px solid ${c}55`, borderRadius:8, padding:"9px 14px", pointerEvents:"none", zIndex:10, minWidth:130, boxShadow:"0 4px 24px rgba(0,0,0,0.6)" }}>
             <div style={{ fontSize:16, fontWeight:800, color:c, fontFamily:"'Plus Jakarta Sans',sans-serif", letterSpacing:-0.5 }}>₹{fmt(hover.price)}</div>
@@ -178,56 +209,115 @@ function InteractiveChart({ history = [], open, high, low, width = 700, height =
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CANDLE CHART
+// CANDLE CHART — fully fixed
 // ─────────────────────────────────────────────────────────────────────────────
-function CandleChart({ candles = [], width = 700, height = 160 }) {
+function CandleChart({ candles = [], height = 160 }) {
   const [hover, setHover] = useState(null);
-  if (!candles.length) return (
-    <div style={{ width, height, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>NO CANDLE DATA</div>
-  );
+  const COORD_W = 1000;
 
   const PAD_L=10, PAD_R=10, PAD_T=10, PAD_B=24;
-  const W = width - PAD_L - PAD_R;
+  const W = COORD_W - PAD_L - PAD_R;
   const H = height - PAD_T - PAD_B;
-  const allPrices = candles.flatMap(c => [c.open, c.close, c.high, c.low]);
-  const pMax = Math.max(...allPrices)*1.002, pMin = Math.min(...allPrices)*0.998;
-  const pRng = pMax - pMin || 1;
+
+  // Guard: no candles or invalid dimensions
+  if (!candles.length || W <= 0 || H <= 0) {
+    return (
+      <div style={{ width:"100%", height, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
+        NO CANDLE DATA
+      </div>
+    );
+  }
+
+  // Guard: filter out candles with invalid prices
+  const validCandles = candles.filter(c =>
+    isFinite(c.open) && isFinite(c.close) && isFinite(c.high) && isFinite(c.low)
+  );
+
+  if (!validCandles.length) {
+    return (
+      <div style={{ width:"100%", height, display:"flex", alignItems:"center", justifyContent:"center", color:"#4a5a7a", fontSize:11, fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>
+        NO VALID CANDLE DATA
+      </div>
+    );
+  }
+
+  const allPrices = validCandles.flatMap(c => [c.open, c.close, c.high, c.low]);
+  const pMax = Math.max(...allPrices) * 1.002;
+  const pMin = Math.min(...allPrices) * 0.998;
+  const pRng = pMax - pMin || 1;  // prevent division by zero
+
   const py   = (v) => PAD_T + H - ((v - pMin) / pRng) * H;
-  const barW = Math.max(2, Math.floor((W / candles.length) * 0.7));
-  const gap  = W / candles.length;
+  const barW = Math.max(2, Math.floor((W / validCandles.length) * 0.7));
+  const gap  = W / validCandles.length;
 
   return (
     <div style={{ position:"relative", userSelect:"none" }}>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display:"block" }} onMouseLeave={() => setHover(null)}>
-        {candles.map((c, i) => {
+      <svg width="100%" height={height} viewBox={`0 0 ${COORD_W} ${height}`}
+        style={{ display:"block" }}
+        onMouseLeave={() => setHover(null)}>
+        {validCandles.map((c, i) => {
           const cx = PAD_L + i * gap + gap / 2;
           const isUp = c.close >= c.open;
           const col  = isUp ? teal : red;
           const bodyTop = py(Math.max(c.open, c.close));
           const bodyH   = Math.max(1, py(Math.min(c.open, c.close)) - bodyTop);
           return (
-            <g key={i} onMouseEnter={() => setHover({ c, cx })} style={{ cursor:"crosshair" }}>
+            <g key={i}
+              onMouseEnter={() => setHover({ c, cx })}
+              style={{ cursor:"crosshair" }}>
               <line x1={cx} y1={py(c.high)} x2={cx} y2={py(c.low)} stroke={col} strokeWidth="1" opacity="0.6"/>
-              <rect x={cx-barW/2} y={bodyTop} width={barW} height={bodyH} fill={isUp?`${col}30`:`${col}50`} stroke={col} strokeWidth="1" rx="1"/>
+              <rect x={cx-barW/2} y={bodyTop} width={barW} height={bodyH}
+                fill={isUp?`${col}30`:`${col}50`} stroke={col} strokeWidth="1" rx="1"/>
             </g>
           );
         })}
-        {candles.filter((_,i) => i % Math.max(1, Math.floor(candles.length/6))===0).map((c,i) => {
-          const idx = candles.indexOf(c);
-          return <text key={i} x={PAD_L+idx*gap+gap/2} y={PAD_T+H+18} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.15)" fontFamily="'DM Mono',monospace">{fmtTime(c.startTime).slice(0,5)}</text>;
-        })}
+
+        {/* X-axis time labels */}
+        {validCandles
+          .filter((_,i) => i % Math.max(1, Math.floor(validCandles.length/6)) === 0)
+          .map((c, i) => {
+            const idx = validCandles.indexOf(c);
+            const cx  = PAD_L + idx * gap + gap / 2;
+            return (
+              <text key={i} x={cx} y={PAD_T+H+18}
+                textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.15)"
+                fontFamily="'DM Mono',monospace">
+                {fmtTime(c.startTime).slice(0,5)}
+              </text>
+            );
+          })
+        }
       </svg>
+
+      {/* Hover tooltip — uses COORD_W for flip detection, no undefined `width` */}
       {hover && (() => {
         const isUp = hover.c.close >= hover.c.open;
-        const c    = isUp ? teal : red;
-        const flip = hover.cx > width * 0.6;
+        const col  = isUp ? teal : red;
+        const flip = hover.cx > COORD_W * 0.6;   // ← FIXED: was `width` (undefined)
         return (
-          <div style={{ position:"absolute", top:8, left:flip?hover.cx-180:hover.cx+10, background:"#0a1525", border:`1px solid ${c}55`, borderRadius:8, padding:"10px 14px", pointerEvents:"none", zIndex:10, minWidth:160, boxShadow:"0 4px 20px rgba(0,0,0,0.6)" }}>
-            <div style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2, marginBottom:6 }}>{fmtTime(hover.c.startTime)} · 1m</div>
-            {[["O",hover.c.open,"#c8d4f0"],["H",hover.c.high,teal],["L",hover.c.low,red],["C",hover.c.close,c]].map(([lbl,val,col]) => (
+          <div style={{
+            position:"absolute", top:8,
+            left:  flip ? "auto" : `calc(${(hover.cx / COORD_W) * 100}% + 10px)`,
+            right: flip ? `calc(${((COORD_W - hover.cx) / COORD_W) * 100}% + 10px)` : "auto",
+            background:"#0a1525",
+            border:`1px solid ${col}55`,
+            borderRadius:8, padding:"10px 14px",
+            pointerEvents:"none", zIndex:10,
+            minWidth:160,
+            boxShadow:"0 4px 20px rgba(0,0,0,0.6)"
+          }}>
+            <div style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2, marginBottom:6 }}>
+              {fmtTime(hover.c.startTime)} · 1m
+            </div>
+            {[
+              ["O", hover.c.open,  "#c8d4f0"],
+              ["H", hover.c.high,  teal],
+              ["L", hover.c.low,   red],
+              ["C", hover.c.close, col],
+            ].map(([lbl, val, c]) => (
               <div key={lbl} style={{ display:"flex", justifyContent:"space-between", gap:16, marginBottom:2 }}>
                 <span style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace" }}>{lbl}</span>
-                <span style={{ fontSize:12, fontWeight:600, color:col, fontFamily:"'DM Mono',monospace" }}>₹{fmt(val)}</span>
+                <span style={{ fontSize:12, fontWeight:600, color:c, fontFamily:"'DM Mono',monospace" }}>₹{fmt(val)}</span>
               </div>
             ))}
           </div>
@@ -241,18 +331,19 @@ function CandleChart({ candles = [], width = 700, height = 160 }) {
 // RSI GAUGE
 // ─────────────────────────────────────────────────────────────────────────────
 function RsiGauge({ rsi }) {
-  if (rsi == null) return null;
+  if (rsi == null || !isFinite(rsi)) return null;
   const color = rsi >= 70 ? red : rsi <= 30 ? teal : "#c8d4f0";
   const label = rsi >= 70 ? "OVERBOUGHT" : rsi <= 30 ? "OVERSOLD" : "NEUTRAL";
   const angle = (Math.min(Math.max(rsi, 0), 100) / 100) * 180 - 90;
+  const rad   = (angle - 90) * Math.PI / 180;
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
       <svg width={120} height={66} viewBox="0 0 120 66">
         <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" strokeLinecap="round"/>
         <path d="M 10 60 A 50 50 0 0 1 35 17"  fill="none" stroke={`${teal}44`} strokeWidth="8" strokeLinecap="round"/>
         <path d="M 85 17 A 50 50 0 0 1 110 60" fill="none" stroke={`${red}44`}  strokeWidth="8" strokeLinecap="round"/>
-        <path d={`M 10 60 A 50 50 0 0 1 ${60+50*Math.cos((angle-90)*Math.PI/180)} ${60+50*Math.sin((angle-90)*Math.PI/180)}`} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" opacity="0.9"/>
-        <line x1="60" y1="60" x2={60+38*Math.cos((angle-90)*Math.PI/180)} y2={60+38*Math.sin((angle-90)*Math.PI/180)} stroke={color} strokeWidth="2" strokeLinecap="round"/>
+        <path d={`M 10 60 A 50 50 0 0 1 ${60+50*Math.cos(rad)} ${60+50*Math.sin(rad)}`} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" opacity="0.9"/>
+        <line x1="60" y1="60" x2={60+38*Math.cos(rad)} y2={60+38*Math.sin(rad)} stroke={color} strokeWidth="2" strokeLinecap="round"/>
         <circle cx="60" cy="60" r="4" fill={color}/>
         <text x="8"   y="76" fontSize="7" fill={`${teal}88`} fontFamily="'DM Mono',monospace">30</text>
         <text x="100" y="76" fontSize="7" fill={`${red}88`}  fontFamily="'DM Mono',monospace">70</text>
@@ -300,9 +391,57 @@ function PriceHistoryTable({ rows = [] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WALLET BALANCE HINT
+// ─────────────────────────────────────────────────────────────────────────────
+function WalletBalanceHint({ isBuy, pfMode, qty, price }) {
+  const [balance, setBalance] = useState(null);
+
+  useEffect(() => {
+    PORTFOLIO_API.get("/wallet/balance")
+      .then(r => setBalance(parseFloat(r.data.balance)))
+      .catch(() => setBalance(null));
+  }, []);
+
+  if (!isBuy || balance === null) return null;
+
+  const total     = price * (parseInt(qty) || 0);
+  const canAfford = balance >= total;
+  const color     = canAfford ? teal : red;
+
+  return (
+    <div style={{ marginBottom:10, padding:"9px 12px", background: canAfford ? "rgba(0,212,160,0.06)" : "rgba(255,90,106,0.06)", border:`1px solid ${color}33`, borderRadius:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+      <div>
+        <div style={{ fontSize:8, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:2 }}>
+          {pfMode ? "Wallet" : "Wallet Balance"}
+        </div>
+        <div style={{ fontSize:13, fontWeight:700, color, fontFamily:"'DM Mono',monospace" }}>
+          ₹{fmt(balance)}
+        </div>
+      </div>
+      {total > 0 && (
+        <div style={{ textAlign:"right" }}>
+          {canAfford ? (
+            <div style={{ fontSize:10, color:teal, fontFamily:"'DM Mono',monospace" }}>✓ Sufficient</div>
+          ) : (
+            <>
+              <div style={{ fontSize:10, color:red, fontFamily:"'DM Mono',monospace", fontWeight:600 }}>⚠ Insufficient</div>
+              <div style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", marginTop:2 }}>
+                Need ₹{fmt(total - balance)} more
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ORDER PANEL
 // ─────────────────────────────────────────────────────────────────────────────
-function OrderPanel({ company, livePrice }) {
+function OrderPanel({ company, livePrice, tradeCompanyId }) {
+  const effectiveCompanyId = tradeCompanyId || company.id;
+
   const [side,        setSide]        = useState("BUY");
   const [orderType,   setOrderType]   = useState("MARKET");
   const [qty,         setQty]         = useState("1");
@@ -310,11 +449,10 @@ function OrderPanel({ company, livePrice }) {
   const [triggerPx,   setTriggerPx]   = useState("");
   const [status,      setStatus]      = useState(null);
   const [loading,     setLoading]     = useState(false);
-  // Portfolio routing
   const [portfolios,  setPortfolios]  = useState([]);
   const [portfolioId, setPortfolioId] = useState("");
-  const [pfMode,      setPfMode]      = useState(false); // false = trade-service, true = portfolio-service
-  const userId = localStorage.getItem("userId") || 1;
+
+  const userId = parseInt(localStorage.getItem("userId") || "1", 10);
   const isBuy  = side === "BUY";
   const c      = isBuy ? teal : red;
 
@@ -326,113 +464,156 @@ function OrderPanel({ company, livePrice }) {
 
   const submit = async () => {
     if (!qty || parseInt(qty) < 1) return;
+    if (!effectiveCompanyId) {
+      setStatus({ ok:false, msg:"Company not found in trade-service." });
+      return;
+    }
+
     setLoading(true); setStatus(null);
+
     try {
-      if (pfMode && portfolioId) {
-        // Route through portfolio service (tracks holdings + avg price)
-        const body = {
-          portfolioId:    parseInt(portfolioId),
-          companySymbol:  company.symbol || company.name.substring(0,6).toUpperCase(),
-          quantity:       parseInt(qty),
-          pricePerShare:  parseFloat(limitPx || livePrice),
-        };
-        const endpoint = side === "BUY" ? "/transactions/buy" : "/transactions/sell";
-        const res = await PORTFOLIO_API.post(endpoint, body);
-        setStatus({ ok:true, msg:`${side} ${qty} × ${res.data.companySymbol} at ₹${fmt(res.data.pricePerShare)} — added to portfolio` });
-      } else {
-        // Route through trade service (order book)
-        const body = { userId:parseInt(userId), companyId:company.id, quantity:parseInt(qty), orderType, price:limitPx?parseFloat(limitPx):undefined, triggerPrice:triggerPx?parseFloat(triggerPx):undefined };
-        const res = await TRADE_API.post(side==="BUY"?"/trade/buy":"/trade/sell", body);
-        setStatus({ ok:true, msg:`Order #${res.data.id} ${res.data.status} at ₹${fmt(res.data.price)}` });
+      const body = {
+        userId:    userId,
+        companyId: effectiveCompanyId,
+        quantity:  parseInt(qty),
+        orderType,
+      };
+      if ((orderType === "LIMIT" || orderType === "STOPLOSS/TARGET") && limitPx)
+        body.price = parseFloat(limitPx);
+      if (orderType === "STOPLOSS/TARGET" && triggerPx)
+        body.triggerPrice = parseFloat(triggerPx);
+
+      const tradeRes = await TRADE_API.post(
+        isBuy ? "/trade/buy" : "/trade/sell",
+        body
+      );
+
+      const executedPrice = tradeRes.data.price;
+      let   msg           = `Order #${tradeRes.data.id} ${tradeRes.data.status} at ₹${fmt(executedPrice)}`;
+
+      if (portfolioId && tradeRes.data.status === "EXECUTED") {
+        try {
+          const pfBody = {
+            portfolioId:   parseInt(portfolioId),
+            companySymbol: company.symbol || company.name.substring(0, 6).toUpperCase(),
+            quantity:      parseInt(qty),
+            pricePerShare: executedPrice,
+          };
+          const endpoint = isBuy ? "/transactions/buy" : "/transactions/sell";
+          await PORTFOLIO_API.post(endpoint, pfBody);
+          const pfName = portfolios.find(p => String(p.id) === String(portfolioId))?.name || "portfolio";
+          msg += ` · Added to "${pfName}"`;
+        } catch (pfErr) {
+          msg += ` · (Portfolio sync failed: ${pfErr.response?.data?.message || "check portfolio service"})`;
+        }
       }
+
+      setStatus({ ok:true, msg });
       setQty("1"); setLimitPx(""); setTriggerPx("");
-    } catch(e) {
-      setStatus({ ok:false, msg:e.response?.data?.message||"Order failed" });
-    } finally { setLoading(false); }
+
+    } catch (e) {
+      const msg = e.response?.data?.message || e.response?.data?.error || "Order failed";
+      setStatus({ ok:false, msg });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
-      {/* Mode toggle */}
-      <div style={{ display:"flex", gap:0, marginBottom:14, borderRadius:8, overflow:"hidden", border:"1px solid #0e1828" }}>
-        {[{id:false,label:"Trade Service"},{id:true,label:"Portfolio Service"}].map(m => (
-          <button key={String(m.id)} onClick={()=>setPfMode(m.id)}
-            style={{ flex:1, padding:"9px", border:"none", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:1, cursor:"pointer", background:pfMode===m.id?"rgba(0,184,255,0.14)":"transparent", color:pfMode===m.id?blue:"#2a3550", transition:"all 0.15s" }}>
-            {m.label}
+      <div style={{ display:"flex", marginBottom:14, borderRadius:9, overflow:"hidden", border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.02)" }}>
+        {["BUY","SELL"].map(s => (
+          <button key={s} onClick={()=>setSide(s)}
+            style={{ flex:1, padding:"11px", border:"none", fontFamily:"'DM Mono',monospace", fontSize:12, letterSpacing:2, fontWeight:700, cursor:"pointer", transition:"all 0.18s",
+              background: side===s ? (s==="BUY" ? "rgba(0,212,160,0.2)" : "rgba(255,90,106,0.2)") : "transparent",
+              color:      side===s ? (s==="BUY" ? teal : red) : "#3a4a6a",
+            }}>
+            {s === "BUY" ? "▲ BUY" : "▼ SELL"}
           </button>
         ))}
       </div>
 
-      <div style={{ display:"flex", marginBottom:14, borderRadius:8, overflow:"hidden", border:"1px solid #0e1828" }}>
-        {["BUY","SELL"].map(s => (
-          <button key={s} onClick={()=>setSide(s)} style={{ flex:1, padding:"10px", border:"none", fontFamily:"'DM Mono',monospace", fontSize:11, letterSpacing:2, fontWeight:700, cursor:"pointer", background:side===s?(s==="BUY"?"rgba(0,212,160,0.18)":"rgba(255,90,106,0.18)"):"transparent", color:side===s?(s==="BUY"?teal:red):"#2a3550", transition:"all 0.15s" }}>{s}</button>
+      <div style={{ display:"flex", gap:4, marginBottom:14 }}>
+        {["MARKET","LIMIT","STOPLOSS/TARGET"].map(t => (
+          <button key={t} onClick={()=>setOrderType(t)}
+            style={{ flex:1, padding:"7px 4px", border:`1px solid ${orderType===t ? c+"55" : "rgba(255,255,255,0.07)"}`, borderRadius:7, background:orderType===t ? `${c}12` : "transparent", color:orderType===t ? c : "#3a4a6a", fontFamily:"'DM Mono',monospace", fontSize:8, letterSpacing:0.8, cursor:"pointer", transition:"all 0.15s" }}>
+            {t}
+          </button>
         ))}
       </div>
 
-      {/* Portfolio selector (portfolio mode only) */}
-      {pfMode && (
-        <div style={{ marginBottom:12 }}>
-          <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Portfolio</label>
-          <select value={portfolioId} onChange={e=>setPortfolioId(e.target.value)}
-            style={{ background:"#060d1a", border:`1px solid ${portfolioId?blue+"44":"#0e1828"}`, borderRadius:7, padding:"9px 12px", color: portfolioId?"#eef0f8":"#3a4a6a", fontFamily:"'DM Mono',monospace", fontSize:12, width:"100%", outline:"none", cursor:"pointer" }}>
-            <option value="">— Select a portfolio —</option>
-            {portfolios.map(p => (
-              <option key={p.id} value={p.id}>{p.name} ({(p.holdings||[]).length} holdings)</option>
-            ))}
-          </select>
-          {portfolios.length === 0 && (
-            <div style={{ fontSize:9, color:amber, fontFamily:"'DM Mono',monospace", marginTop:5 }}>
-              ⚠ No portfolios found — create one in the Portfolio tab first
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Order type (trade service only) */}
-      {!pfMode && (
-        <div style={{ display:"flex", gap:4, marginBottom:12 }}>
-          {["MARKET","LIMIT","GTT"].map(t => (
-            <button key={t} onClick={()=>setOrderType(t)} style={{ flex:1, padding:"6px", border:`1px solid ${orderType===t?c+"55":"#0e1828"}`, borderRadius:6, background:orderType===t?`${c}12`:"transparent", color:orderType===t?c:"#2a3550", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:1, cursor:"pointer" }}>{t}</button>
-          ))}
-        </div>
-      )}
-
-      <div style={{ background:"#060d1a", borderRadius:8, padding:"10px 14px", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+      <div style={{ background:"rgba(6,13,26,0.7)", borderRadius:9, padding:"10px 14px", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center", border:"1px solid rgba(255,255,255,0.06)" }}>
         <span style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>MARKET PRICE</span>
-        <span style={{ fontSize:16, fontWeight:800, color:c, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>₹{fmt(livePrice)}</span>
+        <span style={{ fontSize:18, fontWeight:800, color:c, fontFamily:"'Plus Jakarta Sans',sans-serif", letterSpacing:-0.5 }}>₹{fmt(livePrice)}</span>
       </div>
 
-      {[
-        { label:"Quantity", val:qty, set:setQty, type:"number", show:true, ph:"1" },
-        { label:"Price Per Share (₹)", val:limitPx, set:setLimitPx, type:"number", show:pfMode, ph:`₹${fmt(livePrice,0)}` },
-        { label:"Limit Price (₹)", val:limitPx, set:setLimitPx, type:"number", show:!pfMode&&(orderType==="LIMIT"||orderType==="GTT"), ph:`e.g. ${fmt(livePrice,0)}` },
-        { label:"Trigger Price (₹)", val:triggerPx, set:setTriggerPx, type:"number", show:!pfMode&&orderType==="GTT", ph:"Trigger at…" },
-      ].filter(f=>f.show).map(f => (
-        <div key={f.label} style={{ marginBottom:10 }}>
-          <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>{f.label}</label>
-          <input type={f.type} value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.ph}
-            style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:7, padding:"9px 12px", color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
-            onFocus={e=>e.target.style.borderColor=`${c}55`} onBlur={e=>e.target.style.borderColor="#0e1828"}/>
-        </div>
-      ))}
+      <div style={{ marginBottom:10 }}>
+        <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Quantity</label>
+        <input type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="1" min="1"
+          style={{ background:"rgba(6,13,26,0.7)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:8, padding:"10px 12px", color:"#eef0f8", fontFamily:"'DM Mono',monospace", fontSize:14, width:"100%", outline:"none" }}
+          onFocus={e=>e.target.style.borderColor=`${c}55`}
+          onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.08)"}/>
+      </div>
 
-      {qty && parseInt(qty) > 0 && (
-        <div style={{ background:"#060d1a", borderRadius:7, padding:"8px 12px", marginBottom:12, display:"flex", justifyContent:"space-between" }}>
-          <span style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>EST. TOTAL</span>
-          <span style={{ fontSize:12, color:"#c8d4f0", fontFamily:"'DM Mono',monospace", fontWeight:600 }}>₹{fmt(parseFloat(limitPx||livePrice)*parseInt(qty||0))}</span>
+      {(orderType === "LIMIT" || orderType === "STOPLOSS/TARGET") && (
+        <div style={{ marginBottom:10 }}>
+          <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Limit Price (₹)</label>
+          <input type="number" value={limitPx} onChange={e=>setLimitPx(e.target.value)} placeholder={`e.g. ${fmt(livePrice, 0)}`}
+            style={{ background:"rgba(6,13,26,0.7)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:8, padding:"10px 12px", color:"#eef0f8", fontFamily:"'DM Mono',monospace", fontSize:14, width:"100%", outline:"none" }}
+            onFocus={e=>e.target.style.borderColor=`${c}55`}
+            onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.08)"}/>
         </div>
       )}
 
-      <button onClick={submit} disabled={loading || (pfMode && !portfolioId)}
-        style={{ width:"100%", padding:"13px", background:`${c}18`, border:`1px solid ${c}55`, color:c, borderRadius:10, fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:15, cursor:(loading||(pfMode&&!portfolioId))?"not-allowed":"pointer", opacity:(loading||(pfMode&&!portfolioId))?0.5:1, transition:"all 0.15s" }}
-        onMouseEnter={e=>{ if(!loading&&!(pfMode&&!portfolioId)) e.currentTarget.style.background=`${c}28`; }}
+      {orderType === "STOPLOSS/TARGET" && (
+        <div style={{ marginBottom:10 }}>
+          <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>Trigger Price (₹)</label>
+          <input type="number" value={triggerPx} onChange={e=>setTriggerPx(e.target.value)} placeholder="Trigger at…"
+            style={{ background:"rgba(6,13,26,0.7)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:8, padding:"10px 12px", color:"#eef0f8", fontFamily:"'DM Mono',monospace", fontSize:14, width:"100%", outline:"none" }}
+            onFocus={e=>e.target.style.borderColor=`${c}55`}
+            onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.08)"}/>
+        </div>
+      )}
+
+      <div style={{ marginBottom:12 }}>
+        <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:5 }}>
+          Track in Portfolio <span style={{ color:"#2a3550", letterSpacing:0 }}>(optional)</span>
+        </label>
+        <select value={portfolioId} onChange={e=>setPortfolioId(e.target.value)}
+          style={{ background:"rgba(6,13,26,0.7)", border:`1px solid ${portfolioId ? blue+"44" : "rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"10px 12px", color:portfolioId ? "#eef0f8" : "#3a4a6a", fontFamily:"'DM Mono',monospace", fontSize:12, width:"100%", outline:"none", cursor:"pointer" }}>
+          <option value="">— Don't track (order only) —</option>
+          {portfolios.map(p => (
+            <option key={p.id} value={p.id}>{p.name} · {(p.holdings||[]).length} holdings</option>
+          ))}
+        </select>
+        {portfolioId && (
+          <div style={{ fontSize:9, color:"#3a4a6a", fontFamily:"'DM Mono',monospace", marginTop:4 }}>
+            ✓ Trade will execute via Trade Service and also be recorded in this portfolio
+          </div>
+        )}
+      </div>
+
+      <WalletBalanceHint isBuy={isBuy} pfMode={false} qty={qty} price={parseFloat(limitPx || livePrice)}/>
+
+      {qty && parseInt(qty) > 0 && (
+        <div style={{ background:"rgba(6,13,26,0.5)", borderRadius:8, padding:"8px 12px", marginBottom:12, display:"flex", justifyContent:"space-between", border:"1px solid rgba(255,255,255,0.05)" }}>
+          <span style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:2 }}>EST. TOTAL</span>
+          <span style={{ fontSize:13, color:"#eef0f8", fontFamily:"'DM Mono',monospace", fontWeight:700 }}>
+            ₹{fmt(parseFloat(limitPx || livePrice) * parseInt(qty || 0))}
+          </span>
+        </div>
+      )}
+
+      <button onClick={submit} disabled={loading}
+        style={{ width:"100%", padding:"13px", background:`${c}18`, border:`1px solid ${c}55`, color:c, borderRadius:10, fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:15, cursor:loading ? "wait" : "pointer", opacity:loading ? 0.7 : 1, transition:"all 0.15s", letterSpacing:0.5 }}
+        onMouseEnter={e=>{ if(!loading) e.currentTarget.style.background=`${c}28`; }}
         onMouseLeave={e=>e.currentTarget.style.background=`${c}18`}>
-        {loading?"PLACING…":`${isBuy?"▲ BUY":"▼ SELL"} ${qty||0} × ${company.name}`}
+        {loading ? "PLACING…" : `${isBuy ? "▲ BUY" : "▼ SELL"} ${qty || 0} × ${company.name}`}
       </button>
 
       {status && (
-        <div style={{ marginTop:10, padding:"10px 14px", background:status.ok?"rgba(0,212,160,0.08)":"rgba(255,90,106,0.08)", border:`1px solid ${status.ok?teal:red}44`, borderRadius:8, fontSize:11, color:status.ok?teal:red, fontFamily:"'DM Mono',monospace", letterSpacing:0.5 }}>
-          {status.ok?"✓ ":"✕ "}{status.msg}
+        <div style={{ marginTop:10, padding:"10px 14px", background:status.ok ? "rgba(0,212,160,0.08)" : "rgba(255,90,106,0.08)", border:`1px solid ${status.ok ? teal : red}44`, borderRadius:8, fontSize:11, color:status.ok ? teal : red, fontFamily:"'DM Mono',monospace", lineHeight:1.5 }}>
+          {status.ok ? "✓ " : "✕ "}{status.msg}
         </div>
       )}
     </div>
@@ -454,7 +635,7 @@ function ChartInsights({ history=[], open, high, low, price, dayChangePct }) {
   const trendStr = Math.round((Math.max(ups,downs)/Math.max(changes.length,1))*100);
   const trendDir = ups>=downs?"BULLISH":"BEARISH";
   let signal="NEUTRAL", sigColor="#4a5a7a";
-  if (momentum>0.5&&stdDev<2)   { signal="TRENDING UP";    sigColor=teal; }
+  if (momentum>0.5&&stdDev<2)    { signal="TRENDING UP";    sigColor=teal; }
   else if(momentum<-0.5&&stdDev<2){ signal="TRENDING DOWN";  sigColor=red; }
   else if(stdDev>3)               { signal="HIGH VOLATILITY";sigColor=amber; }
   else if(Math.abs(dayChangePct)>15){ signal="NEAR CIRCUIT"; sigColor=amber; }
@@ -506,8 +687,9 @@ function LiveSparkline({ history=[], width=80, height=32 }) {
   if (history.length < 2) return <div style={{ width, height }}/>;
   const max=Math.max(...history), min=Math.min(...history);
   const up=history[history.length-1]>=history[0], c=up?teal:red;
-  const pts=history.map((v,i)=>`${(i/(history.length-1))*width},${height-((v-min)/(max-min||1))*(height-6)-3}`).join(" ");
-  const last=pts.split(" ").pop().split(",");
+  const range = max - min || 1;
+  const pts=history.map((v,i)=>`${(i/(history.length-1))*width},${height-((v-min)/range)*(height-6)-3}`).join(" ");
+  const lastPt = pts.split(" ").pop().split(",");
   const area=`${pts} ${width},${height} 0,${height}`;
   const uid=`sp${width}x${height}`;
   return (
@@ -515,7 +697,7 @@ function LiveSparkline({ history=[], width=80, height=32 }) {
       <defs><linearGradient id={uid} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={c} stopOpacity="0.25"/><stop offset="100%" stopColor={c} stopOpacity="0"/></linearGradient></defs>
       <polygon points={area} fill={`url(#${uid})`}/>
       <polyline points={pts} fill="none" stroke={c} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
-      <circle cx={last[0]} cy={last[1]} r="2.5" fill={c}/>
+      <circle cx={lastPt[0]} cy={lastPt[1]} r="2.5" fill={c}/>
     </svg>
   );
 }
@@ -558,7 +740,6 @@ function LiveCompanyRow({ company, liveData, onClick, watchlist, alerts, onToggl
       onMouseEnter={e => { if (!flash) e.currentTarget.style.background="rgba(0,184,255,0.03)"; }}
       onMouseLeave={e => { if (!flash) e.currentTarget.style.background="transparent"; }}>
 
-      {/* Company name — opens detail modal */}
       <td style={{ padding:"12px 16px" }} onClick={() => onClick(company, liveData)}>
         <div style={{ display:"flex", alignItems:"center", gap:9 }}>
           <div style={{ width:36, height:36, borderRadius:10, background:`linear-gradient(135deg,${color}22,${color}08)`, border:`1px solid ${color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'DM Mono',monospace", fontSize:11, fontWeight:700, color, flexShrink:0 }}>
@@ -600,10 +781,8 @@ function LiveCompanyRow({ company, liveData, onClick, watchlist, alerts, onToggl
         {history.length >= 2 ? <LiveSparkline history={history} width={64} height={26}/> : <span style={{ color:"#2a3550", fontSize:10 }}>—</span>}
       </td>
 
-      {/* Star + Bell action buttons */}
       <td style={{ padding:"12px 10px" }}>
         <div style={{ display:"flex", gap:5, alignItems:"center" }}>
-          {/* Watchlist star */}
           <button
             title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
             onClick={e => { e.stopPropagation(); onToggleWatch && onToggleWatch(company.id); }}
@@ -620,7 +799,6 @@ function LiveCompanyRow({ company, liveData, onClick, watchlist, alerts, onToggl
             {isWatched ? "★" : "☆"}
           </button>
 
-          {/* Alert bell */}
           <button
             title={hasAlert ? "Edit price alert" : "Set price alert"}
             onClick={e => { e.stopPropagation(); onSetAlert && onSetAlert(company); }}
@@ -643,9 +821,9 @@ function LiveCompanyRow({ company, liveData, onClick, watchlist, alerts, onToggl
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LIVE DETAIL MODAL
+// LIVE DETAIL MODAL — wrapped in ErrorBoundary, safe ResizeObserver
 // ─────────────────────────────────────────────────────────────────────────────
-function LiveDetailModal({ company, liveData, onClose }) {
+function LiveDetailModalInner({ company, liveData, onClose }) {
   const { price, open, high, low, dayChangePct, tickChangePct, history } = liveData;
   const up       = dayChangePct >= 0;
   const color    = up ? teal : red;
@@ -656,22 +834,25 @@ function LiveDetailModal({ company, liveData, onClose }) {
   const [indicators, setIndicators] = useState(null);
   const [priceHist,  setPriceHist]  = useState([]);
   const [activeView, setActiveView] = useState("live");
-  const chartRef = useRef(null);
-  const [chartW, setChartW] = useState(760);
 
-  useEffect(() => {
-    const obs = new ResizeObserver(([e]) => setChartW(Math.floor(e.contentRect.width) - 16));
-    if (chartRef.current) obs.observe(chartRef.current);
-    return () => obs.disconnect();
-  }, []);
+  // Use a single container ref — measure it once, don't track width in state
+  // (avoids the ResizeObserver → zero-width → NaN crash)
+  const chartContainerRef = useRef(null);
 
-  const tradeId = liveData.companyId;
+  const tradeIdRef = useRef(liveData.companyId);
   useEffect(() => {
+    const tradeId = tradeIdRef.current;
     if (!tradeId) return;
-    TRADE_API.get(`/candles/${tradeId}`).then(r=>setCandles(r.data)).catch(()=>{});
-    TRADE_API.get(`/indicators/${tradeId}`).then(r=>setIndicators(r.data)).catch(()=>{});
-    TRADE_API.get(`/price-history/${tradeId}`).then(r=>setPriceHist(r.data)).catch(()=>{});
-  }, [tradeId]);
+    TRADE_API.get(`/candles/${tradeId}`).then(r => {
+      const data = Array.isArray(r.data) ? r.data : [];
+      setCandles(data);
+    }).catch(() => setCandles([]));
+    TRADE_API.get(`/indicators/${tradeId}`).then(r => setIndicators(r.data)).catch(() => {});
+    TRADE_API.get(`/price-history/${tradeId}`).then(r => {
+      const data = Array.isArray(r.data) ? r.data : [];
+      setPriceHist(data);
+    }).catch(() => setPriceHist([]));
+  }, []);
 
   const hasLiveData = price > 0;
   const views = [
@@ -784,15 +965,16 @@ function LiveDetailModal({ company, liveData, onClose }) {
               <div style={{ padding:"48px 28px", textAlign:"center" }}>
                 <div style={{ fontSize:32, marginBottom:12, color:"#2a3550" }}>◎</div>
                 <div style={{ color:"#4a5a7a", fontSize:12, fontFamily:"'DM Mono',monospace", letterSpacing:2, marginBottom:8 }}>NO LIVE DATA</div>
-                <div style={{ color:"#2a3550", fontSize:11 }}>This company is not registered in the trade-service (port 8083).<br/>Add it there and set an openingPrice to enable live pricing.</div>
+                <div style={{ color:"#2a3550", fontSize:11 }}>This company is not registered in the trade-service (port 8083).</div>
               </div>
             ) : (
               <>
-                <div ref={chartRef} style={{ padding:"12px 8px 0", background:"#060d1a", borderBottom:"1px solid #0e1828" }}>
+                {/* Chart container — no ResizeObserver, SVG scales via width="100%" */}
+                <div ref={chartContainerRef} style={{ padding:"12px 8px 0", background:"#060d1a", borderBottom:"1px solid #0e1828" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 20px 8px" }}>
                     <span style={{ fontSize:9, color:"#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Price Chart · Hover to inspect</span>
                   </div>
-                  <InteractiveChart history={history} open={open} high={high} low={low} width={chartW} height={180}/>
+                  <InteractiveChart history={history} open={open} high={high} low={low} height={180}/>
                 </div>
                 <div style={{ margin:"12px 28px 0", background:"#060d1a", borderRadius:10, padding:"11px 16px", border:"1px solid #0e1828" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
@@ -834,11 +1016,14 @@ function LiveDetailModal({ company, liveData, onClose }) {
           </>
         )}
 
+        {/* Candle tab — wrapped in ErrorBoundary so a chart crash doesn't blank the screen */}
         {activeView === "candle" && (
           <div style={{ padding:"16px 28px" }}>
-            <div style={{ background:"#060d1a", borderRadius:12, padding:"12px 8px 8px", border:"1px solid #0e1828", marginBottom:16 }}>
-              <CandleChart candles={candles} width={chartW||820} height={200}/>
-            </div>
+            <ErrorBoundary>
+              <div style={{ background:"#060d1a", borderRadius:12, padding:"12px 8px 8px", border:"1px solid #0e1828", marginBottom:16 }}>
+                <CandleChart candles={candles} height={200}/>
+              </div>
+            </ErrorBoundary>
             {indicators && (
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
                 <div style={{ background:"#060d1a", border:"1px solid #0e1828", borderRadius:12, padding:"18px 20px", display:"flex", flexDirection:"column", alignItems:"center" }}>
@@ -877,7 +1062,11 @@ function LiveDetailModal({ company, liveData, onClose }) {
               </div>
             ) : (
               <div style={{ maxWidth:440 }}>
-                <OrderPanel company={company} livePrice={price}/>
+                <OrderPanel
+                  company={company}
+                  livePrice={price}
+                  tradeCompanyId={liveData.companyId}
+                />
               </div>
             )}
           </div>
@@ -888,6 +1077,13 @@ function LiveDetailModal({ company, liveData, onClose }) {
   );
 }
 
+function LiveDetailModal(props) {
+  return (
+    <ErrorBoundary>
+      <LiveDetailModalInner {...props}/>
+    </ErrorBoundary>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALERT MODAL
@@ -1031,9 +1227,204 @@ function WatchlistCard({ company, liveData, alerts, onRemove, onSetAlert, onOpen
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STAT CARD
+// PROFILE MODAL
 // ─────────────────────────────────────────────────────────────────────────────
+function ProfileModal({ onClose, onDeposit }) {
+  const [tab,         setTab]         = useState("wallet");
+  const [balance,     setBalance]     = useState(null);
+  const [depositAmt,  setDepositAmt]  = useState("");
+  const [walletBusy,  setWalletBusy]  = useState(false);
+  const [walletMsg,   setWalletMsg]   = useState(null);
+  const [curPwd,      setCurPwd]      = useState("");
+  const [newPwd,      setNewPwd]      = useState("");
+  const [confPwd,     setConfPwd]     = useState("");
+  const [pwdBusy,     setPwdBusy]     = useState(false);
+  const [pwdMsg,      setPwdMsg]      = useState(null);
 
+  const username = localStorage.getItem("username") || "User";
+  const email    = localStorage.getItem("userEmail") || "";
+  const userId   = localStorage.getItem("userId");
+
+  useEffect(() => {
+    PORTFOLIO_API.get("/wallet/balance")
+      .then(r => setBalance(r.data.balance))
+      .catch(() => setBalance(null));
+  }, []);
+
+  const deposit = async () => {
+    const amt = parseFloat(depositAmt);
+    if (!amt || amt <= 0) { setWalletMsg({ ok:false, text:"Enter a valid amount" }); return; }
+    setWalletBusy(true); setWalletMsg(null);
+    try {
+      const r = await PORTFOLIO_API.post("/wallet/deposit", { amount: amt });
+      setBalance(r.data.balance);
+      setDepositAmt("");
+      setWalletMsg({ ok:true, text:`₹${fmt(amt)} added! New balance: ₹${fmt(r.data.balance)}` });
+      if (onDeposit) onDeposit();
+    } catch(e) {
+      setWalletMsg({ ok:false, text: e.response?.data?.message || "Deposit failed" });
+    } finally { setWalletBusy(false); }
+  };
+
+  const changePassword = async () => {
+    if (!curPwd || !newPwd || !confPwd) { setPwdMsg({ ok:false, text:"Fill all fields" }); return; }
+    if (newPwd !== confPwd)              { setPwdMsg({ ok:false, text:"New passwords do not match" }); return; }
+    if (newPwd.length < 6)              { setPwdMsg({ ok:false, text:"Password must be at least 6 characters" }); return; }
+    setPwdBusy(true); setPwdMsg(null);
+    try {
+      await AUTH_API.post("/auth/change-password", {
+        userId:          parseInt(userId),
+        currentPassword: curPwd,
+        newPassword:     newPwd,
+      });
+      setPwdMsg({ ok:true, text:"Password changed successfully!" });
+      setCurPwd(""); setNewPwd(""); setConfPwd("");
+    } catch(e) {
+      setPwdMsg({ ok:false, text: e.response?.data?.message || "Failed to change password" });
+    } finally { setPwdBusy(false); }
+  };
+
+  const QUICK_AMOUNTS = [1000, 5000, 10000, 25000, 50000];
+
+  return (
+    <div onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}
+      style={{ position:"fixed", inset:0, background:"rgba(4,8,18,0.82)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9300, backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", padding:16 }}>
+      <div className="glass-card" style={{ borderRadius:22, width:"100%", maxWidth:480, position:"relative", overflow:"hidden", borderTop:`2px solid ${blue}` }}>
+
+        <button onClick={onClose}
+          style={{ position:"absolute", top:16, right:16, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#4a5a7a", width:30, height:30, borderRadius:8, cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}
+          onMouseEnter={e=>e.currentTarget.style.color="#eef0f8"}
+          onMouseLeave={e=>e.currentTarget.style.color="#4a5a7a"}>✕</button>
+
+        <div style={{ padding:"24px 28px 16px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ width:48, height:48, borderRadius:14, background:`linear-gradient(135deg,${blue}33,${purple}33)`, border:`1px solid ${blue}44`, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:20, color:blue }}>
+              {username.substring(0,1).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:18, color:"#eef0f8" }}>{username}</div>
+              <div style={{ fontSize:11, color:"#3a4a6a", fontFamily:"'DM Mono',monospace", marginTop:2 }}>{email}</div>
+            </div>
+            {balance !== null && (
+              <div style={{ marginLeft:"auto", background:"rgba(0,212,160,0.1)", border:"1px solid rgba(0,212,160,0.3)", borderRadius:10, padding:"6px 14px", textAlign:"right" }}>
+                <div style={{ fontSize:8, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Wallet</div>
+                <div style={{ fontSize:16, fontWeight:800, color:teal, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>₹{fmt(balance)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display:"flex", background:"rgba(6,13,26,0.6)" }}>
+          {[["wallet","💰 Wallet"],["password","🔒 Password"]].map(([id, label]) => (
+            <button key={id} onClick={()=>{ setTab(id); setWalletMsg(null); setPwdMsg(null); }}
+              style={{ flex:1, padding:"12px", border:"none", borderBottom:`2px solid ${tab===id?blue:"transparent"}`, background:"transparent", color:tab===id?blue:"#3a4a6a", fontFamily:"'DM Mono',monospace", fontSize:11, letterSpacing:2, cursor:"pointer", transition:"all 0.15s", textTransform:"uppercase" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding:"24px 28px" }}>
+          {tab === "wallet" && (
+            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+              <div style={{ background:"rgba(0,212,160,0.06)", border:"1px solid rgba(0,212,160,0.18)", borderRadius:14, padding:"20px 22px", textAlign:"center" }}>
+                <div style={{ fontSize:9, color:"#5a6a8a", letterSpacing:3, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:8 }}>Available Balance</div>
+                {balance === null ? (
+                  <div style={{ fontSize:12, color:"#3a4a6a", fontFamily:"'DM Mono',monospace" }}>
+                    Create a portfolio first to activate your wallet
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:38, fontWeight:800, color:teal, letterSpacing:-1 }}>₹{fmt(balance)}</div>
+                    <div style={{ fontSize:10, color:"#3a4a6a", fontFamily:"'DM Mono',monospace", marginTop:4 }}>Virtual trading balance</div>
+                  </>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", marginBottom:8 }}>Quick Add</div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {QUICK_AMOUNTS.map(a => (
+                    <button key={a} onClick={()=>setDepositAmt(String(a))}
+                      style={{ flex:1, minWidth:72, padding:"8px 4px", background: depositAmt===String(a)?"rgba(0,184,255,0.14)":"rgba(255,255,255,0.03)", border:`1px solid ${depositAmt===String(a)?"rgba(0,184,255,0.45)":"rgba(255,255,255,0.08)"}`, color:depositAmt===String(a)?blue:"#6a7a9a", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:0.5, transition:"all 0.15s" }}>
+                      ₹{a >= 1000 ? (a/1000)+"K" : a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:6 }}>Custom Amount (₹)</label>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input type="number" value={depositAmt} onChange={e=>setDepositAmt(e.target.value)}
+                    placeholder="Enter amount…" min="1"
+                    style={{ flex:1, background:"rgba(6,13,26,0.8)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:9, padding:"11px 14px", color:"#eef0f8", fontFamily:"'DM Mono',monospace", fontSize:14, outline:"none" }}
+                    onFocus={e=>e.target.style.borderColor=`${teal}55`}
+                    onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.09)"}
+                    onKeyDown={e=>{ if(e.key==="Enter") deposit(); }}/>
+                  <button onClick={deposit} disabled={walletBusy||!depositAmt}
+                    style={{ padding:"11px 20px", background:`${teal}18`, border:`1px solid ${teal}55`, color:teal, borderRadius:9, cursor:walletBusy||!depositAmt?"not-allowed":"pointer", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:14, opacity:walletBusy||!depositAmt?0.5:1, whiteSpace:"nowrap", transition:"all 0.15s" }}
+                    onMouseEnter={e=>{ if(!walletBusy&&depositAmt) e.currentTarget.style.background=`${teal}28`; }}
+                    onMouseLeave={e=>e.currentTarget.style.background=`${teal}18`}>
+                    {walletBusy ? "Adding…" : "+ Add"}
+                  </button>
+                </div>
+              </div>
+              {walletMsg && (
+                <div style={{ padding:"10px 14px", background:walletMsg.ok?"rgba(0,212,160,0.08)":"rgba(255,90,106,0.08)", border:`1px solid ${walletMsg.ok?teal:red}44`, borderRadius:8, fontSize:11, color:walletMsg.ok?teal:red, fontFamily:"'DM Mono',monospace" }}>
+                  {walletMsg.ok ? "✓ " : "✕ "}{walletMsg.text}
+                </div>
+              )}
+              <div style={{ fontSize:10, color:"#2a3550", fontFamily:"'DM Mono',monospace", textAlign:"center", marginTop:4 }}>
+                Virtual funds only · not real money
+              </div>
+            </div>
+          )}
+
+          {tab === "password" && (
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {[
+                { label:"Current Password",   val:curPwd,  set:setCurPwd,  ph:"Enter current password" },
+                { label:"New Password",        val:newPwd,  set:setNewPwd,  ph:"Min 6 characters" },
+                { label:"Confirm New Password",val:confPwd, set:setConfPwd, ph:"Repeat new password" },
+              ].map(f => (
+                <div key={f.label}>
+                  <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:6 }}>{f.label}</label>
+                  <input type="password" value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.ph}
+                    style={{ background:"rgba(6,13,26,0.8)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:9, padding:"11px 14px", color:"#eef0f8", fontFamily:"'DM Mono',monospace", fontSize:13, width:"100%", outline:"none" }}
+                    onFocus={e=>e.target.style.borderColor=`${blue}55`}
+                    onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.09)"}
+                    onKeyDown={e=>{ if(e.key==="Enter") changePassword(); }}/>
+                </div>
+              ))}
+              {newPwd && (
+                <div>
+                  <div style={{ height:3, background:"rgba(255,255,255,0.05)", borderRadius:2 }}>
+                    <div style={{ height:"100%", borderRadius:2, transition:"all 0.3s",
+                      width: newPwd.length < 6 ? "25%" : newPwd.length < 10 ? "55%" : newPwd.length < 14 ? "80%" : "100%",
+                      background: newPwd.length < 6 ? red : newPwd.length < 10 ? amber : teal
+                    }}/>
+                  </div>
+                  <div style={{ fontSize:9, color: newPwd.length < 6 ? red : newPwd.length < 10 ? amber : teal, fontFamily:"'DM Mono',monospace", marginTop:4 }}>
+                    {newPwd.length < 6 ? "Too short" : newPwd.length < 10 ? "Fair" : newPwd.length < 14 ? "Good" : "Strong"}
+                  </div>
+                </div>
+              )}
+              {pwdMsg && (
+                <div style={{ padding:"10px 14px", background:pwdMsg.ok?"rgba(0,212,160,0.08)":"rgba(255,90,106,0.08)", border:`1px solid ${pwdMsg.ok?teal:red}44`, borderRadius:8, fontSize:11, color:pwdMsg.ok?teal:red, fontFamily:"'DM Mono',monospace" }}>
+                  {pwdMsg.ok ? "✓ " : "✕ "}{pwdMsg.text}
+                </div>
+              )}
+              <button onClick={changePassword} disabled={pwdBusy}
+                style={{ width:"100%", padding:"12px", background:`${blue}18`, border:`1px solid ${blue}55`, color:blue, borderRadius:10, cursor:pwdBusy?"wait":"pointer", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:15, opacity:pwdBusy?0.7:1, transition:"all 0.15s", marginTop:4 }}
+                onMouseEnter={e=>{ if(!pwdBusy) e.currentTarget.style.background=`${blue}28`; }}
+                onMouseLeave={e=>e.currentTarget.style.background=`${blue}18`}>
+                {pwdBusy ? "Changing…" : "🔒 Change Password"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTOR DONUT CHART
@@ -1051,7 +1442,6 @@ const SECTOR_COLORS = {
   "Other":          "#6b7280",
 };
 
-// Map company symbol → sector using the same data as DataSeeder
 const SYMBOL_SECTOR = {
   TCS:"IT", INFY:"IT", WIPRO:"IT",
   HDFCBANK:"Banking", ICICIBANK:"Banking", SBIN:"Banking", AXISBANK:"Banking",
@@ -1067,7 +1457,6 @@ const SYMBOL_SECTOR = {
 function SectorDonut({ portfolios, liveMap, companies }) {
   const [hovered, setHovered] = useState(null);
 
-  // Aggregate current value by sector across all portfolios
   const sectorMap = {};
   portfolios.forEach(p => {
     (p.holdings || []).forEach(h => {
@@ -1075,7 +1464,6 @@ function SectorDonut({ portfolios, liveMap, companies }) {
       const ld        = company ? liveMap[company.id] : null;
       const price     = ld ? ld.price : parseFloat(h.averagePrice);
       const value     = price * parseFloat(h.quantity);
-      // Try live company sector first, then symbol map, then "Other"
       const sector    = (company && company.sector) || SYMBOL_SECTOR[h.companySymbol] || "Other";
       sectorMap[sector] = (sectorMap[sector] || 0) + value;
     });
@@ -1086,7 +1474,6 @@ function SectorDonut({ portfolios, liveMap, companies }) {
 
   if (entries.length === 0) return null;
 
-  // Build SVG arcs
   const CX = 110, CY = 110, R = 80, INNER = 50;
   let angle = -Math.PI / 2;
   const slices = entries.map(([sector, value]) => {
@@ -1114,9 +1501,7 @@ function SectorDonut({ portfolios, liveMap, companies }) {
         <div style={{ width:3, height:16, background:blue, borderRadius:2 }}/>
         <span style={{ fontSize:11, color:"#6a7a9a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace" }}>Sector Breakdown</span>
       </div>
-
       <div style={{ display:"flex", gap:24, alignItems:"center", flexWrap:"wrap" }}>
-        {/* Donut */}
         <div style={{ position:"relative", flexShrink:0 }}>
           <svg width={220} height={220} viewBox="0 0 220 220">
             {slices.map(s => (
@@ -1127,7 +1512,6 @@ function SectorDonut({ portfolios, liveMap, companies }) {
                 onMouseEnter={() => setHovered(s.sector)}
                 onMouseLeave={() => setHovered(null)}/>
             ))}
-            {/* Centre text */}
             <text x={CX} y={CY - 8} textAnchor="middle" fontSize="11"
               fill={hov ? (SECTOR_COLORS[hov.sector] || "#c8d4f0") : "#5a6a8a"}
               fontFamily="'DM Mono',monospace">
@@ -1146,8 +1530,6 @@ function SectorDonut({ portfolios, liveMap, companies }) {
             )}
           </svg>
         </div>
-
-        {/* Legend */}
         <div style={{ display:"flex", flexDirection:"column", gap:8, flex:1, minWidth:160 }}>
           {slices.map(s => (
             <div key={s.sector}
@@ -1175,8 +1557,6 @@ function SectorDonut({ portfolios, liveMap, companies }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SIP SIMULATOR
 // ─────────────────────────────────────────────────────────────────────────────
-// Static historical price seeds per symbol (monthly, last 24 months, worked backwards from current)
-// In a real app these would come from a price-history API
 const SIP_HISTORY = {
   TCS:        [3100,3150,3200,3180,3220,3260,3300,3280,3320,3350,3380,3400,3420,3450,3430,3460,3480,3500,3520,3490,3510,3530,3490,3500],
   INFY:       [1250,1270,1290,1280,1300,1320,1310,1330,1350,1340,1360,1380,1370,1390,1400,1420,1410,1430,1440,1435,1445,1450,1455,1450],
@@ -1208,7 +1588,6 @@ function SipSimulator({ companies, liveMap }) {
   const history  = SIP_HISTORY[symbol] || [];
   const slice    = history.slice(-months);
 
-  // Calculate SIP: buy on 1st of each month at that month's price
   let totalInvested = 0, totalUnits = 0;
   const monthly_data = slice.map((price, i) => {
     const units    = amount / price;
@@ -1228,19 +1607,20 @@ function SipSimulator({ companies, liveMap }) {
   const up           = totalReturn >= 0;
   const avgCost      = totalUnits > 0 ? totalInvested / totalUnits : 0;
 
-  // Mini line chart of portfolio value over time
   const W = 520, H = 120, PAD_L = 48, PAD_R = 12, PAD_T = 12, PAD_B = 28;
   const cW = W - PAD_L - PAD_R, cH = H - PAD_T - PAD_B;
   const vals = monthly_data.map(d => d.curVal);
   const minV = Math.min(...vals) * 0.97, maxV = Math.max(...vals) * 1.03;
-  const px   = i => PAD_L + (i / (vals.length - 1)) * cW;
-  const py   = v => PAD_T + cH - ((v - minV) / (maxV - minV || 1)) * cH;
+  const valRange = maxV - minV || 1;
+  const px   = i => PAD_L + (i / Math.max(vals.length - 1, 1)) * cW;
+  const py   = v => PAD_T + cH - ((v - minV) / valRange) * cH;
 
-  // Invested baseline
   const invVals = monthly_data.map(d => d.totalInvested);
   const invPts  = invVals.map((v,i) => `${px(i)},${py(v)}`).join(" ");
   const valPts  = vals.map((v,i)    => `${px(i)},${py(v)}`).join(" ");
-  const areaPath = `M${px(0)},${py(vals[0])} ` + vals.map((v,i) => `L${px(i)},${py(v)}`).join(" ") + ` L${px(vals.length-1)},${PAD_T+cH} L${px(0)},${PAD_T+cH} Z`;
+  const areaPath = vals.length > 1
+    ? `M${px(0)},${py(vals[0])} ` + vals.map((v,i) => `L${px(i)},${py(v)}`).join(" ") + ` L${px(vals.length-1)},${PAD_T+cH} L${px(0)},${PAD_T+cH} Z`
+    : "";
 
   const uid = "sip_chart";
 
@@ -1252,9 +1632,7 @@ function SipSimulator({ companies, liveMap }) {
         <span style={{ fontSize:9, color:"#3a4a6a", fontFamily:"'DM Mono',monospace", marginLeft:4 }}>Systematic Investment Plan — hypothetical back-test</span>
       </div>
 
-      {/* Controls */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:18 }}>
-        {/* Stock picker */}
         <div>
           <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:6 }}>Stock</label>
           <select value={symbol} onChange={e=>setSymbol(e.target.value)}
@@ -1264,8 +1642,6 @@ function SipSimulator({ companies, liveMap }) {
             ))}
           </select>
         </div>
-
-        {/* Monthly amount */}
         <div>
           <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:6 }}>Monthly Amount (₹)</label>
           <input type="number" value={monthly} onChange={e=>setMonthly(e.target.value)} min="100" step="500"
@@ -1273,8 +1649,6 @@ function SipSimulator({ companies, liveMap }) {
             onFocus={e=>e.target.style.borderColor=`${purple}55`}
             onBlur={e=>e.target.style.borderColor="#0e1828"}/>
         </div>
-
-        {/* Duration */}
         <div>
           <label style={{ fontSize:9, color:"#5a6a8a", letterSpacing:2, textTransform:"uppercase", fontFamily:"'DM Mono',monospace", display:"block", marginBottom:6 }}>Duration: {months} months</label>
           <input type="range" min="3" max="24" value={months} onChange={e=>setMonths(Number(e.target.value))}
@@ -1286,7 +1660,6 @@ function SipSimulator({ companies, liveMap }) {
         </div>
       </div>
 
-      {/* Result cards */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:18 }}>
         {[
           { label:"Total Invested",  val:`₹${fmtCap(totalInvested)}`,  color:"#c8d4f0" },
@@ -1301,7 +1674,6 @@ function SipSimulator({ companies, liveMap }) {
         ))}
       </div>
 
-      {/* Chart */}
       <div style={{ background:"#060d1a", borderRadius:10, padding:"8px 4px 4px", position:"relative" }}
         onMouseLeave={() => setHovIdx(null)}>
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:"block" }}
@@ -1319,7 +1691,6 @@ function SipSimulator({ companies, liveMap }) {
             </linearGradient>
           </defs>
 
-          {/* Y gridlines */}
           {[0.25,0.5,0.75,1].map(f => {
             const yy = PAD_T + cH * (1 - f);
             const vv = minV + (maxV - minV) * f;
@@ -1331,14 +1702,10 @@ function SipSimulator({ companies, liveMap }) {
             );
           })}
 
-          {/* Invested line */}
           <polyline points={invPts} fill="none" stroke="rgba(251,191,36,0.35)" strokeWidth="1" strokeDasharray="4,3"/>
+          {areaPath && <path d={areaPath} fill={`url(#${uid}_g)`}/>}
+          {vals.length > 1 && <polyline points={valPts} fill="none" stroke={up?teal:red} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>}
 
-          {/* Value area + line */}
-          <path d={areaPath} fill={`url(#${uid}_g)`}/>
-          <polyline points={valPts} fill="none" stroke={up?teal:red} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-
-          {/* X month labels */}
           {slice.map((_, i) => {
             if (i % Math.max(1, Math.floor(slice.length / 6)) !== 0 && i !== slice.length - 1) return null;
             const mIdx = (new Date().getMonth() - slice.length + 1 + i + 120) % 12;
@@ -1349,7 +1716,6 @@ function SipSimulator({ companies, liveMap }) {
             );
           })}
 
-          {/* Hover crosshair */}
           {hovIdx !== null && (
             <>
               <line x1={px(hovIdx)} y1={PAD_T} x2={px(hovIdx)} y2={PAD_T+cH} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3,3"/>
@@ -1359,14 +1725,13 @@ function SipSimulator({ companies, liveMap }) {
           )}
         </svg>
 
-        {/* Hover tooltip */}
         {hovIdx !== null && monthly_data[hovIdx] && (() => {
           const d   = monthly_data[hovIdx];
           const ret = d.curVal - d.totalInvested;
           const rp  = d.totalInvested > 0 ? (ret / d.totalInvested) * 100 : 0;
           const u   = ret >= 0;
           return (
-            <div style={{ position:"absolute", top:8, left: px(hovIdx) > W*0.6 ? "auto" : px(hovIdx)/W*100+2+"%", right: px(hovIdx) > W*0.6 ? (100-px(hovIdx)/W*100)+2+"%" : "auto", background:"#0a1525", border:`1px solid ${u?teal:red}44`, borderRadius:8, padding:"9px 13px", pointerEvents:"none", minWidth:150, zIndex:10 }}>
+            <div style={{ position:"absolute", top:8, left: hovIdx > monthly_data.length * 0.6 ? "auto" : `${(px(hovIdx)/W)*100+2}%`, right: hovIdx > monthly_data.length * 0.6 ? `${((W-px(hovIdx))/W*100)+2}%` : "auto", background:"#0a1525", border:`1px solid ${u?teal:red}44`, borderRadius:8, padding:"9px 13px", pointerEvents:"none", minWidth:150, zIndex:10 }}>
               <div style={{ fontSize:9, color:"#5a6a8a", fontFamily:"'DM Mono',monospace", letterSpacing:1, marginBottom:6 }}>Month {hovIdx + 1} of {months}</div>
               {[
                 ["Invested",    `₹${fmtCap(d.totalInvested)}`,  "#c8d4f0"],
@@ -1383,7 +1748,6 @@ function SipSimulator({ companies, liveMap }) {
           );
         })()}
 
-        {/* Legend */}
         <div style={{ display:"flex", gap:16, justifyContent:"center", marginTop:6 }}>
           {[[up?teal:red, "Portfolio value", false],[amber, "Amount invested", true]].map(([c, lbl, dashed]) => (
             <div key={lbl} style={{ display:"flex", alignItems:"center", gap:5 }}>
@@ -1394,7 +1758,6 @@ function SipSimulator({ companies, liveMap }) {
         </div>
       </div>
 
-      {/* Monthly breakdown table */}
       <div style={{ marginTop:14, maxHeight:200, overflowY:"auto" }}>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead>
@@ -1432,7 +1795,7 @@ function SipSimulator({ companies, liveMap }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PORTFOLIO MODAL  (create / edit)
+// PORTFOLIO MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 function PortfolioModal({ mode, portfolio, onClose, onSaved }) {
   const isEdit = mode === "edit";
@@ -1532,7 +1895,6 @@ function PortfolioCard({ portfolio, liveMap, companies, onEdit, onDelete, onRefr
   const holdings = portfolio.holdings || [];
   const totalInvested = holdings.reduce((s, h) => s + parseFloat(h.totalInvestment || 0), 0);
 
-  // Calculate current market value using live prices
   const currentValue = holdings.reduce((s, h) => {
     const company = companies.find(c =>
       c.symbol === h.companySymbol || String(c.id) === String(h.companyId)
@@ -1567,7 +1929,6 @@ function PortfolioCard({ portfolio, liveMap, companies, onEdit, onDelete, onRefr
       onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.14)"}
       onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"}>
 
-      {/* Card header */}
       <div style={{ padding:"20px 22px 16px", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
           <div>
@@ -1588,7 +1949,6 @@ function PortfolioCard({ portfolio, liveMap, companies, onEdit, onDelete, onRefr
           </div>
         </div>
 
-        {/* P&L summary row */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
           {[
             { label:"Invested",      val:`₹${fmtCap(totalInvested)}`,  color:"#c8d4f0" },
@@ -1603,7 +1963,6 @@ function PortfolioCard({ portfolio, liveMap, companies, onEdit, onDelete, onRefr
         </div>
       </div>
 
-      {/* Holdings section toggle */}
       <button onClick={() => setExpanded(v => !v)}
         style={{ width:"100%", padding:"11px 22px", background:"transparent", border:"none", borderBottom:expanded?"1px solid rgba(255,255,255,0.05)":"none", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", transition:"background 0.15s" }}
         onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.02)"}
@@ -1614,7 +1973,6 @@ function PortfolioCard({ portfolio, liveMap, companies, onEdit, onDelete, onRefr
         <span style={{ fontSize:10, color:"#3a4a6a", fontFamily:"'DM Mono',monospace" }}>{expanded ? "▲ Hide" : "▼ Show"}</span>
       </button>
 
-      {/* Holdings table */}
       {expanded && (
         <>
           {holdings.length === 0 ? (
@@ -1679,7 +2037,6 @@ function PortfolioCard({ portfolio, liveMap, companies, onEdit, onDelete, onRefr
             </div>
           )}
 
-          {/* Transaction history toggle */}
           <button onClick={handleTxView}
             style={{ width:"100%", padding:"10px 22px", background:"transparent", border:"none", borderTop:"1px solid #0e1828", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.02)"}
@@ -1801,8 +2158,8 @@ export default function Home({ onLogout }) {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [portfolios,        setPortfolios]        = useState([]);
   const [portfoliosLoading, setPortfoliosLoading] = useState(false);
-  const [portfolioModal,    setPortfolioModal]    = useState(null);  // null | "create" | portfolioObj
-  const [portfolioSubTab,   setPortfolioSubTab]   = useState("holdings"); // holdings | sector | sip
+  const [portfolioModal,    setPortfolioModal]    = useState(null);
+  const [portfolioSubTab,   setPortfolioSubTab]   = useState("holdings");
   const [watchlist,   setWatchlist]   = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("sb_watchlist") || "[]")); }
     catch { return new Set(); }
@@ -1813,7 +2170,15 @@ export default function Home({ onLogout }) {
   });
   const [alertToast,  setAlertToast]  = useState([]);
   const [alertModal,  setAlertModal]  = useState(null);
-  const [showLogout, setShowLogout] = useState(false);
+  const [showLogout,  setShowLogout]  = useState(false);
+  const [showProfile,   setShowProfile]   = useState(false);
+  const [navWalletBal,  setNavWalletBal]  = useState(null);
+
+  const refreshNavWallet = () => {
+    PORTFOLIO_API.get("/wallet/balance")
+      .then(r => setNavWalletBal(r.data.balance))
+      .catch(() => setNavWalletBal(null));
+  };
   const scrollRef = useRef(null);
 
   const { liveMap, connected, tickCount } = useExchange();
@@ -1829,21 +2194,12 @@ export default function Home({ onLogout }) {
 
   const fetchOrders = async () => {
     const userId = localStorage.getItem("userId");
-
-    if (!userId) {
-      console.warn("[Orders] No userId in localStorage — please log in again");
-      setOrders([]);
-      setOrdersLoading(false);
-      return;
-    }
-
+    if (!userId) { setOrders([]); setOrdersLoading(false); return; }
     setOrdersLoading(true);
     try {
       const res = await TRADE_API.get(`/trade/user/${userId}`);
       const all = Array.isArray(res.data) ? res.data : [];
-      // Client-side guard: ensure only this user's orders are shown
-      const mine = all.filter(o => String(o.userId) === String(userId));
-      setOrders(mine);
+      setOrders(all.filter(o => String(o.userId) === String(userId)));
     } catch(e) {
       console.warn("[Orders] fetch failed:", e.message);
       setOrders([]);
@@ -1856,7 +2212,6 @@ export default function Home({ onLogout }) {
       const res = await PORTFOLIO_API.get("/portfolios");
       setPortfolios(Array.isArray(res.data) ? res.data : []);
     } catch(e) {
-      console.warn("[Portfolio] fetch failed:", e.message);
       setPortfolios([]);
     } finally { setPortfoliosLoading(false); }
   };
@@ -1901,6 +2256,7 @@ export default function Home({ onLogout }) {
   }, [liveMap]);
 
   useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => { refreshNavWallet(); }, []);
   useEffect(() => { if (tab === "orders")    fetchOrders(); },    [tab]);
   useEffect(() => { if (tab === "portfolio") fetchPortfolios(); }, [tab]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [tab]);
@@ -1959,7 +2315,8 @@ export default function Home({ onLogout }) {
         .glass-row:hover td { background:rgba(255,255,255,0.025) !important; }
       `}</style>
 
-      {showLogout && <LogoutModal onConfirm={()=>{ setShowLogout(false); if(onLogout) onLogout(); }} onCancel={()=>setShowLogout(false)}/>}
+      {showLogout  && <LogoutModal onConfirm={()=>{ setShowLogout(false); if(onLogout) onLogout(); }} onCancel={()=>setShowLogout(false)}/>}
+      {showProfile && <ProfileModal onClose={()=>setShowProfile(false)} onDeposit={refreshNavWallet}/>}
       {selected && (
         <LiveDetailModal
           company={selected.company}
@@ -1975,7 +2332,6 @@ export default function Home({ onLogout }) {
           onSaved={fetchPortfolios}
         />
       )}
-
       {alertModal && (
         <AlertModal
           company={alertModal}
@@ -1987,6 +2343,7 @@ export default function Home({ onLogout }) {
         />
       )}
 
+      {/* Alert toasts */}
       <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,display:"flex",flexDirection:"column",gap:10,pointerEvents:"none"}}>
         {alertToast.map(t => {
           const a=t.alert; const up=a.direction==="above"; const c=up?teal:red;
@@ -2009,7 +2366,7 @@ export default function Home({ onLogout }) {
       <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#04080e", fontFamily:"'DM Mono',monospace", color:"#c8d4f0" }}>
 
         {/* Navbar */}
-        <div style={{ background:"#060d1a", borderBottom:"1px solid #0e1828", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", flexShrink:0, zIndex:100 }}>
+        <div style={{ background:"rgba(6,13,26,0.95)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,0.07)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px", flexShrink:0, zIndex:100 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <div style={{ width:32, height:32, borderRadius:9, background:"linear-gradient(135deg,#00b8ff,#00d4a0)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:16, color:"#04080e" }}>S</div>
             <div>
@@ -2017,32 +2374,49 @@ export default function Home({ onLogout }) {
               <div style={{ fontSize:9, color:"#7a8aaa", letterSpacing:3 }}>LIVE EXCHANGE</div>
             </div>
           </div>
-          <div style={{ display:"flex", gap:2 }}>
+          <div style={{ display:"flex", gap:1, background:"rgba(255,255,255,0.03)", borderRadius:10, padding:"3px" }}>
             {NAV.map(n => (
               <button key={n.id} onClick={()=>setTab(n.id)}
-                style={{ background:tab===n.id?"rgba(0,184,255,0.1)":"transparent", border:tab===n.id?"1px solid rgba(0,184,255,0.25)":"1px solid transparent", color:tab===n.id?blue:"#8a9aba", padding:"7px 18px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:11, letterSpacing:2, textTransform:"uppercase", display:"flex", alignItems:"center", gap:8, transition:"all 0.15s" }}
-                onMouseEnter={e=>{ if(tab!==n.id){ e.currentTarget.style.color="#6a7a9a"; e.currentTarget.style.background="rgba(255,255,255,0.02)"; } }}
-                onMouseLeave={e=>{ if(tab!==n.id){ e.currentTarget.style.color="#2a3550"; e.currentTarget.style.background="transparent"; } }}>
-                <span style={{ fontSize:13 }}>{n.icon}</span>{n.label}
+                style={{ background:tab===n.id?"rgba(0,184,255,0.14)":"transparent", border:"none", color:tab===n.id?"#eef0f8":"#4a5a7a", padding:"6px 14px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:1.5, textTransform:"uppercase", display:"flex", alignItems:"center", gap:6, transition:"all 0.18s", boxShadow:tab===n.id?"0 1px 8px rgba(0,184,255,0.15)":"none" }}
+                onMouseEnter={e=>{ if(tab!==n.id){ e.currentTarget.style.color="#8a9aba"; e.currentTarget.style.background="rgba(255,255,255,0.04)"; } }}
+                onMouseLeave={e=>{ if(tab!==n.id){ e.currentTarget.style.color="#4a5a7a"; e.currentTarget.style.background="transparent"; } }}>
+                <span style={{ fontSize:12 }}>{n.icon}</span>{n.label}
               </button>
             ))}
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-              <div style={{ width:6, height:6, borderRadius:"50%", background:connected?teal:red, boxShadow:connected?`0 0 5px ${teal}`:"none", animation:connected?"pulseDot 1.5s infinite":"none" }}/>
-              <span style={{ fontSize:9, color:connected?teal:"#ff5a6a", letterSpacing:2 }}>{connected?"WS LIVE · 1S":"RECONNECTING…"}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:20, padding:"4px 10px" }}>
+              <div style={{ width:6, height:6, borderRadius:"50%", background:connected?teal:red, boxShadow:connected?`0 0 6px ${teal}`:"none", animation:connected?"pulseDot 1.5s infinite":"none", flexShrink:0 }}/>
+              <span style={{ fontSize:9, color:connected?teal:"#ff5a6a", letterSpacing:1, fontFamily:"'DM Mono',monospace", whiteSpace:"nowrap" }}>
+                {connected ? "LIVE" : "OFF"}
+              </span>
             </div>
-            <div style={{ width:1, height:20, background:"#0e1828" }}/>
-            <button onClick={fetchCompanies}
-              style={{ background:"transparent", border:"1px solid #0e1828", color:"#5a6a8a", padding:"5px 12px", borderRadius:7, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, transition:"all 0.15s" }}
-              onMouseEnter={e=>{ e.currentTarget.style.color=blue; e.currentTarget.style.borderColor=blue+"44"; }}
-              onMouseLeave={e=>{ e.currentTarget.style.color="#2a3550"; e.currentTarget.style.borderColor="#0e1828"; }}>↻</button>
-            <button onClick={()=>setShowLogout(true)}
-              style={{ background:"rgba(255,90,106,0.08)", border:"1px solid rgba(255,90,106,0.2)", color:red, padding:"5px 14px", borderRadius:7, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:9, letterSpacing:2, textTransform:"uppercase", transition:"all 0.15s", display:"flex", alignItems:"center", gap:6 }}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,90,106,0.18)"}
-              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,90,106,0.08)"}>
-              <span>⏻</span> Sign Out
+            <button onClick={fetchCompanies} title="Refresh companies"
+              style={{ width:30, height:30, borderRadius:8, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", color:"#5a6a8a", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s", flexShrink:0 }}
+              onMouseEnter={e=>{ e.currentTarget.style.color=blue; e.currentTarget.style.borderColor=blue+"44"; e.currentTarget.style.background="rgba(0,184,255,0.08)"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.color="#5a6a8a"; e.currentTarget.style.borderColor="rgba(255,255,255,0.08)"; e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}>↻</button>
+            <button onClick={()=>setShowProfile(true)}
+              style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:10, padding:"5px 10px 5px 6px", cursor:"pointer", transition:"all 0.15s" }}
+              onMouseEnter={e=>{ e.currentTarget.style.background="rgba(0,184,255,0.07)"; e.currentTarget.style.borderColor="rgba(0,184,255,0.3)"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.background="rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.09)"; }}>
+              <div style={{ width:26, height:26, borderRadius:8, background:`linear-gradient(135deg,${blue}55,${purple}55)`, border:`1px solid ${blue}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:"#eef0f8", flexShrink:0 }}>
+                {(localStorage.getItem("username")||"U").substring(0,1).toUpperCase()}
+              </div>
+              <div style={{ textAlign:"left" }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"#c8d4f0", fontFamily:"'Plus Jakarta Sans',sans-serif", lineHeight:1.2 }}>
+                  {localStorage.getItem("username") || "User"}
+                </div>
+                {navWalletBal !== null && (
+                  <div style={{ fontSize:9, color:teal, fontFamily:"'DM Mono',monospace", letterSpacing:0.5 }}>
+                    ₹{fmtCap(navWalletBal)}
+                  </div>
+                )}
+              </div>
             </button>
+            <button onClick={()=>setShowLogout(true)} title="Sign out"
+              style={{ width:30, height:30, borderRadius:8, background:"rgba(255,90,106,0.07)", border:"1px solid rgba(255,90,106,0.18)", color:"#ff5a6a", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s", flexShrink:0 }}
+              onMouseEnter={e=>{ e.currentTarget.style.background="rgba(255,90,106,0.18)"; e.currentTarget.style.borderColor="rgba(255,90,106,0.45)"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.background="rgba(255,90,106,0.07)"; e.currentTarget.style.borderColor="rgba(255,90,106,0.18)"; }}>⏻</button>
           </div>
         </div>
 
@@ -2205,8 +2579,7 @@ export default function Home({ onLogout }) {
                   <div style={{ background:"rgba(251,191,36,0.06)", border:"1px solid rgba(251,191,36,0.2)", borderRadius:10, padding:"12px 16px", display:"flex", alignItems:"center", gap:10 }}>
                     <span style={{ color:amber, fontSize:14 }}>⚠</span>
                     <span style={{ fontSize:11, color:amber, fontFamily:"'DM Mono',monospace" }}>
-                      {companies.length - hasLive} company/companies are in stock-service (8082) but not in trade-service (8083).
-                      Add them to trade-service with an openingPrice to enable live pricing.
+                      {companies.length - hasLive} company/companies are in stock-service but not in trade-service.
                     </span>
                   </div>
                 )}
@@ -2259,7 +2632,6 @@ export default function Home({ onLogout }) {
             {/* ORDERS */}
             {tab === "orders" && (
               <div className="fi" style={{ display:"flex", flexDirection:"column", gap:16 }}>
-
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div>
                     <div style={{ fontSize:9, color:"#4a5a7a", letterSpacing:4, textTransform:"uppercase", marginBottom:2 }}>My Activity</div>
@@ -2273,7 +2645,6 @@ export default function Home({ onLogout }) {
                   </button>
                 </div>
 
-                {/* Summary strip */}
                 {orders.length > 0 && (() => {
                   const buys   = orders.filter(o => o.side === "BUY");
                   const sells  = orders.filter(o => o.side === "SELL");
@@ -2297,7 +2668,6 @@ export default function Home({ onLogout }) {
                   );
                 })()}
 
-                {/* Orders table */}
                 <div className="glass-card" style={{ borderRadius:14, overflow:"hidden" }}>
                   {ordersLoading ? (
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, padding:48 }}>
@@ -2308,7 +2678,6 @@ export default function Home({ onLogout }) {
                     <div style={{ textAlign:"center", padding:56 }}>
                       <div style={{ fontSize:32, marginBottom:10 }}>⚠</div>
                       <div style={{ fontSize:11, color:amber, letterSpacing:3, fontFamily:"'DM Mono',monospace" }}>SESSION NOT FOUND</div>
-                      <div style={{ fontSize:10, color:"#3a4a6a", marginTop:6 }}>Could not read user ID from session — please log out and log back in</div>
                     </div>
                   ) : orders.length === 0 ? (
                     <div style={{ textAlign:"center", padding:56 }}>
@@ -2363,9 +2732,7 @@ export default function Home({ onLogout }) {
                                   {order.orderType || "MARKET"}
                                 </span>
                               </td>
-                              <td style={{ padding:"13px 14px", textAlign:"right", fontSize:13, fontWeight:600, color:"#eef0f8", fontFamily:"'DM Mono',monospace" }}>
-                                {order.quantity}
-                              </td>
+                              <td style={{ padding:"13px 14px", textAlign:"right", fontSize:13, fontWeight:600, color:"#eef0f8", fontFamily:"'DM Mono',monospace" }}>{order.quantity}</td>
                               <td style={{ padding:"13px 14px", textAlign:"right" }}>
                                 <div style={{ fontSize:13, fontWeight:700, color:"#eef0f8", fontFamily:"'Plus Jakarta Sans',sans-serif" }}>₹{fmt(order.price)}</div>
                               </td>
@@ -2388,12 +2755,6 @@ export default function Home({ onLogout }) {
                     </table>
                   )}
                 </div>
-
-                {orders.length > 0 && (
-                  <div style={{ textAlign:"center", fontSize:10, color:"#7a8aaa", letterSpacing:2 }}>
-                    {orders.length} ORDERS · USER #{localStorage.getItem("userId") || "?"}
-                  </div>
-                )}
                 <div style={{ height:24 }}/>
               </div>
             )}
@@ -2401,8 +2762,6 @@ export default function Home({ onLogout }) {
             {/* PORTFOLIO */}
             {tab === "portfolio" && (
               <div className="fi" style={{ display:"flex", flexDirection:"column", gap:16 }}>
-
-                {/* Header */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
                   <div>
                     <div style={{ fontSize:9, color:"#4a5a7a", letterSpacing:4, textTransform:"uppercase", marginBottom:4 }}>My Investments</div>
@@ -2416,7 +2775,6 @@ export default function Home({ onLogout }) {
                   </button>
                 </div>
 
-                {/* Loading */}
                 {portfoliosLoading ? (
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, padding:60 }}>
                     <div style={{ width:18, height:18, border:`2px solid #0e1828`, borderTopColor:blue, borderRadius:"50%", animation:"spin 0.8s linear infinite" }}/>
@@ -2434,7 +2792,6 @@ export default function Home({ onLogout }) {
                   </div>
                 ) : (
                   <>
-                    {/* Summary cards */}
                     {(() => {
                       const totalInvested = portfolios.reduce((sum, p) =>
                         sum + (p.holdings||[]).reduce((s, h) => s + parseFloat(h.totalInvestment||0), 0), 0);
@@ -2459,11 +2816,6 @@ export default function Home({ onLogout }) {
                       );
                     })()}
 
-                    {/* Sub-tab row: Holdings | Sector | SIP */}
-                    {(() => {
-                      const [subTab, setSubTab] = window._portfolioSubTab || [undefined, undefined];
-                      return null; // sub-tab state is below via portfolioSubTab state
-                    })()}
                     <div style={{ display:"flex", gap:0, background:"#060d1a", borderRadius:10, padding:3, border:"1px solid #0e1828" }}>
                       {[
                         { id:"holdings", label:"Holdings" },
@@ -2477,7 +2829,6 @@ export default function Home({ onLogout }) {
                       ))}
                     </div>
 
-                    {/* Holdings sub-tab */}
                     {portfolioSubTab === "holdings" && (
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(420px,1fr))", gap:14 }}>
                         {portfolios.map(p => (
@@ -2500,18 +2851,15 @@ export default function Home({ onLogout }) {
                       </div>
                     )}
 
-                    {/* Sector Breakdown sub-tab */}
                     {portfolioSubTab === "sector" && (
                       <SectorDonut portfolios={portfolios} liveMap={liveMap} companies={companies}/>
                     )}
 
-                    {/* SIP Simulator sub-tab */}
                     {portfolioSubTab === "sip" && (
                       <SipSimulator companies={companies} liveMap={liveMap}/>
                     )}
                   </>
                 )}
-
                 <div style={{ height:24 }}/>
               </div>
             )}

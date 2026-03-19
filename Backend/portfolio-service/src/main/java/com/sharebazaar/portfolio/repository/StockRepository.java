@@ -24,4 +24,15 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Stock s WHERE s.companySymbol = :symbol")
     Optional<Stock> findByCompanySymbolWithLock(@Param("symbol") String symbol);
+
+//    Optional<Stock> findByCompanySymbol(String companySymbol);
+//
+//    // Added — needed by StockSyncService to match by companyId before symbol
+//    // This prevents duplicate key errors when DataSeeder already seeded the row
+//    Optional<Stock> findByCompanyId(Long companyId);
+//
+//    @Lock(LockModeType.PESSIMISTIC_WRITE)
+//    @Query("SELECT s FROM Stock s WHERE s.companySymbol = :symbol")
+//    Optional<Stock> findByCompanySymbolWithLock(@Param("symbol") String symbol);
+
 }

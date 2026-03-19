@@ -3,6 +3,7 @@ package com.sharebazaar.auth.service;
 import com.sharebazaar.auth.domain.Role;
 import com.sharebazaar.auth.domain.User;
 import com.sharebazaar.auth.dto.AuthResponse;
+import com.sharebazaar.auth.dto.ChangePasswordRequest;
 import com.sharebazaar.auth.dto.LoginRequest;
 import com.sharebazaar.auth.dto.RegisterRequest;
 import com.sharebazaar.auth.repository.UserRepository;
@@ -25,68 +26,60 @@ public class AuthService {
     }
 
     public UserDto register(RegisterRequest request) {
-
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(request.getEmail()))
             throw new GlobalException("Email is already registered");
-        }
-
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByUsername(request.getUsername()))
             throw new GlobalException("Username is already taken");
-        }
 
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(request.getRole() == null ? Role.USER : request.getRole());
 
-        /* ROLE LOGIC */
-        if (request.getRole() == null) {
-            user.setRole(Role.USER);
-        } else {
-            user.setRole(request.getRole());
-        }
+        User saved = userRepository.save(user);
+        return toDto(saved);
+    }
 
-        User savedUser = userRepository.save(user);
+    public AuthResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new GlobalException("Invalid credentials"));
 
-        return new UserDto(
-                savedUser.getId(),
-                savedUser.getUsername(),
-                savedUser.getEmail(),
-                savedUser.getRole().name()
-        );
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
+            throw new GlobalException("Invalid credentials");
+
+        String token = "mock-jwt-token-for-" + user.getUsername();
+        return new AuthResponse(token, toDto(user));
     }
 
     public List<UserDto> getAllUsers() {
         return userRepository.findByRole(Role.USER)
                 .stream()
-                .map(user -> new UserDto(
-                        user.getId(),
-                        user.getUsername(),
-                        user.getEmail(),
-                        user.getRole().name()
-                ))
+                .map(this::toDto)
                 .toList();
     }
 
-    public AuthResponse login(LoginRequest request) {
+    /**
+     * Change password — verifies current password before updating.
+     */
+    public void changePassword(ChangePasswordRequest request) {
+        if (request.getUserId() == null)
+            throw new GlobalException("User ID is required");
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new GlobalException("Invalid credentials"));
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new GlobalException("User not found"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new GlobalException("Invalid credentials");
-        }
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword()))
+            throw new GlobalException("Current password is incorrect");
 
-        /* Replace with real JWT later */
-        String token = "mock-jwt-token-for-" + user.getUsername();
+        if (request.getCurrentPassword().equals(request.getNewPassword()))
+            throw new GlobalException("New password must be different from current password");
 
-        UserDto userDto = new UserDto(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getRole().name()
-        );
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
 
-        return new AuthResponse(token, userDto);
+    private UserDto toDto(User u) {
+        return new UserDto(u.getId(), u.getUsername(), u.getEmail(), u.getRole().name());
     }
 }
