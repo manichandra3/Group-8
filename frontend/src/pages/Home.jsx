@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useExchange, TRADE_API, getLive } from "../hooks/useExchange";
 
-const STOCK_API     = axios.create({ baseURL: "http://localhost:8082/api" });
-const PORTFOLIO_API = axios.create({ baseURL: "http://localhost:8084/api" });
+const STOCK_API     = axios.create({ baseURL: "http://localhost:8085/api" });
+const PORTFOLIO_API = axios.create({ baseURL: "http://localhost:8085/api" });
 
 PORTFOLIO_API.interceptors.request.use(cfg => {
   const uid = localStorage.getItem("userId");

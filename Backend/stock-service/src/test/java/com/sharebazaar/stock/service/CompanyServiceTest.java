@@ -15,6 +15,7 @@ import com.sharebazaar.stock.domain.Company;
 import com.sharebazaar.stock.dto.CompanyRequest;
 import com.sharebazaar.stock.dto.CompanyResponse;
 import com.sharebazaar.stock.repository.CompanyRepository;
+import com.sharebazaar.stock.repository.ShareRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,11 +33,14 @@ class CompanyServiceTest {
     @Mock
     private CompanyRepository companyRepository;
 
+    @Mock
+    private ShareRepository shareRepository;
+
     private CompanyService companyService;
 
     @BeforeEach
     void setUp() {
-        companyService = new CompanyService(companyRepository);
+        companyService = new CompanyService(companyRepository, shareRepository);
     }
 
     // ---- Helper methods ----

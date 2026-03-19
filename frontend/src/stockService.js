@@ -21,6 +21,9 @@ const SYMBOLS = [
   { symbol: "WIPRO.NS", label: "WIPRO",     currency: "INR" },
 ];
 
+const ENABLE_LIVE_QUOTES = import.meta.env.VITE_ENABLE_LIVE_QUOTES === "true";
+let hasLoggedLiveDisabled = false;
+
 // Static fallback shown when all proxies fail
 const STATIC_FALLBACK = [
   { label:"SENSEX",    price: 73852, changePct: 1.1,  up: true,  currency:"INR" },
@@ -32,6 +35,20 @@ const STATIC_FALLBACK = [
   { label:"INFY",      price: 1522,  changePct: 0.7,  up: true,  currency:"INR" },
   { label:"WIPRO",     price: 492,   changePct: 0.3,  up: true,  currency:"INR" },
 ];
+
+const PROXY_COOLDOWN_MS = 120000;
+const proxyBlockedUntil = {
+  corsproxy: 0,
+  codetabs: 0,
+};
+
+function isProxyAvailable(name) {
+  return Date.now() >= proxyBlockedUntil[name];
+}
+
+function blockProxy(name) {
+  proxyBlockedUntil[name] = Date.now() + PROXY_COOLDOWN_MS;
+}
 
 // ── Yahoo Finance URL builder ──────────────────────────────────────────────
 function yahooUrl(symbol) {
@@ -51,6 +68,22 @@ async function viaCodetabs(symbol) {
   const res    = await fetch(`https://api.codetabs.com/v1/proxy?quest=${target}`, { signal: AbortSignal.timeout(6000) });
   if (!res.ok) throw new Error(`codetabs ${res.status}`);
   return res.json();
+}
+
+async function probeProxy(name, symbol) {
+  if (!isProxyAvailable(name)) return false;
+
+  try {
+    if (name === "corsproxy") {
+      await viaCorsproxy(symbol);
+    } else {
+      await viaCodetabs(symbol);
+    }
+    return true;
+  } catch (_) {
+    blockProxy(name);
+    return false;
+  }
 }
 
 // ── Parse Yahoo response → { label, price, changePct, up, currency } ──────
@@ -75,18 +108,26 @@ function parseYahoo(data, label, currency) {
 }
 
 // ── Fetch a single symbol with proxy fallback chain ────────────────────────
-async function fetchOne({ symbol, label, currency }) {
-  // Try proxy 1
-  try {
-    const data = await viaCorsproxy(symbol);
-    return parseYahoo(data, label, currency);
-  } catch (_) { /* try next */ }
+async function fetchOne({ symbol, label, currency }, proxyState) {
+  if (proxyState.corsproxy && isProxyAvailable("corsproxy")) {
+    try {
+      const data = await viaCorsproxy(symbol);
+      return parseYahoo(data, label, currency);
+    } catch (_) {
+      blockProxy("corsproxy");
+      proxyState.corsproxy = false;
+    }
+  }
 
-  // Try proxy 2
-  try {
-    const data = await viaCodetabs(symbol);
-    return parseYahoo(data, label, currency);
-  } catch (_) { /* give up */ }
+  if (proxyState.codetabs && isProxyAvailable("codetabs")) {
+    try {
+      const data = await viaCodetabs(symbol);
+      return parseYahoo(data, label, currency);
+    } catch (_) {
+      blockProxy("codetabs");
+      proxyState.codetabs = false;
+    }
+  }
 
   // Return null — caller will use static fallback
   return null;
@@ -94,17 +135,31 @@ async function fetchOne({ symbol, label, currency }) {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 export async function fetchAllQuotes() {
-  try {
-    // Fetch all symbols in parallel, timeout the whole batch at 10s
-    const results = await Promise.race([
-      Promise.allSettled(SYMBOLS.map(s => fetchOne(s))),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("batch timeout")), 10000)),
-    ]);
+  if (!ENABLE_LIVE_QUOTES) {
+    if (!hasLoggedLiveDisabled) {
+      console.info("[stockService] Using static fallback (live quotes disabled)");
+      hasLoggedLiveDisabled = true;
+    }
+    return STATIC_FALLBACK;
+  }
 
-    // Keep successful fetches
-    const live = results
-      .filter(r => r.status === "fulfilled" && r.value !== null)
-      .map(r => r.value);
+  try {
+    const probeSymbol = SYMBOLS[0].symbol;
+    const proxyState = {
+      corsproxy: await probeProxy("corsproxy", probeSymbol),
+      codetabs: await probeProxy("codetabs", probeSymbol),
+    };
+
+    if (!proxyState.corsproxy && !proxyState.codetabs) {
+      console.info("[stockService] Using static fallback (proxies cooling down)");
+      return STATIC_FALLBACK;
+    }
+
+    const live = [];
+    for (const symbolConfig of SYMBOLS) {
+      const quote = await fetchOne(symbolConfig, proxyState);
+      if (quote) live.push(quote);
+    }
 
     if (live.length >= 3) {
       // Enough live data — use it, fill missing with static
@@ -114,7 +169,7 @@ export async function fetchAllQuotes() {
     }
 
     // Not enough live data — use all static
-    console.info("[stockService] Using static fallback (proxies unavailable)");
+    console.info("[stockService] Using static fallback (insufficient live quotes)");
     return STATIC_FALLBACK;
 
   } catch (_) {

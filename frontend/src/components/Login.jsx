@@ -19,6 +19,36 @@ export default function Login({ quotes }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const doLoginRequest = async () => {
+    const res = await fetch("http://localhost:8085/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
+
+    // If gateway is up but service discovery is still warming up, retry once.
+    if (res.status === 503) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return fetch("http://localhost:8085/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+    }
+
+    return res;
+  };
+
   const handleLogin = async () => {
 
     setError("");
@@ -32,16 +62,7 @@ export default function Login({ quotes }) {
 
       setLoading(true);
 
-      const res = await fetch("http://localhost:8081/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
-      });
+      const res = await doLoginRequest();
 
       const data = await res.json();
 

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { getCompanies, createCompany, deleteCompany, getShares, createShare } from "../api";
 import axios from "axios";
 
-const AUTH_API  = axios.create({ baseURL: "http://localhost:8081" });
-const TRADE_API = axios.create({ baseURL: "http://localhost:8083" });
+const AUTH_API  = axios.create({ baseURL: "http://localhost:8085" });
+const TRADE_API = axios.create({ baseURL: "http://localhost:8085" });
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, accent }) {

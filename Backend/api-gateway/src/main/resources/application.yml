@@ -1,16 +1,48 @@
 server:
-  port: 8080
+  port: 8085
 
 spring:
   application:
     name: api-gateway
   cloud:
     gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin RETAIN_FIRST
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
       routes:
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/auth/**
+        - id: stock-service
+          uri: lb://stock-service
+          predicates:
+            - Path=/api/companies/**, /api/shares/**
+        - id: portfolio-service
+          uri: lb://portfolio-service
+          predicates:
+            - Path=/api/portfolios/**, /api/transactions/**
+        - id: trade-service-ws
+          uri: lb:ws://trade-service
+          predicates:
+            - Path=/ws/**
+        - id: trade-service
+          uri: lb://trade-service
+          predicates:
+            - Path=/api/prices/**, /candles/**, /price-history/**, /indicators/**, /trade/**, /admin/**
 
 eureka:
   client:

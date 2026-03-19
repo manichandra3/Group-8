@@ -7,10 +7,10 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import axios from "axios";
 
-export const TRADE_API = axios.create({ baseURL: "http://localhost:8083" });
+export const TRADE_API = axios.create({ baseURL: "http://localhost:8085" });
 
-const WS_URL       = "http://localhost:8083/ws";
-const SNAPSHOT_URL = "http://localhost:8083/api/prices/snapshot";
+const WS_URL       = "http://localhost:8085/ws";
+const SNAPSHOT_URL = "http://localhost:8085/api/prices/snapshot";
 const MAX_HISTORY  = 60;
 
 export function normName(n = "") {

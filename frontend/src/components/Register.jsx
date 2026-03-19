@@ -18,6 +18,36 @@ export default function Register() {
 
   const [loading, setLoading] = useState(false);
 
+  const doRegisterRequest = async () => {
+    const payload = {
+      username,
+      email,
+      password,
+      role
+    };
+
+    const res = await fetch("http://localhost:8085/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 503) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return fetch("http://localhost:8085/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    return res;
+  };
+
   const handleRegister = async () => {
 
     setError("");
@@ -36,18 +66,7 @@ export default function Register() {
 
       setLoading(true);
 
-      const res = await fetch("http://localhost:8081/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-          role
-        })
-      });
+      const res = await doRegisterRequest();
 
       const data = await res.json();
 

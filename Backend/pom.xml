@@ -20,8 +20,12 @@
 
     <modules>
         <module>core-shared</module>
+        <module>discovery-server</module>
         <module>api-gateway</module>
         <module>auth-service</module>
+        <module>stock-service</module>
+        <module>portfolio-service</module>
+        <module>trade-service</module>
     </modules>
 
     <properties>
