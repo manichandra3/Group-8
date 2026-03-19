@@ -1,6 +1,7 @@
 package com.sharebazaar.auth.controller;
 
 import com.sharebazaar.auth.dto.AuthResponse;
+import com.sharebazaar.auth.dto.ChangePasswordRequest;
 import com.sharebazaar.auth.dto.LoginRequest;
 import com.sharebazaar.auth.dto.RegisterRequest;
 import com.sharebazaar.auth.service.AuthService;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -33,9 +35,18 @@ public class AuthController {
         return authService.login(request);
     }
 
-    // ✅ NEW API
     @GetMapping("/users")
     public List<UserDto> getAllUsers() {
         return authService.getAllUsers();
+    }
+
+    /**
+     * POST /auth/change-password
+     * Body: { userId, currentPassword, newPassword }
+     */
+    @PostMapping("/change-password")
+    public Map<String, String> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return Map.of("message", "Password changed successfully");
     }
 }

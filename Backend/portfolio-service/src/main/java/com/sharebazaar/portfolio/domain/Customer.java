@@ -1,14 +1,7 @@
 package com.sharebazaar.portfolio.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-
+import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,6 +24,10 @@ public class Customer {
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
+    /** Virtual wallet balance — starts at 0, user deposits manually */
+    @Column(name = "wallet_balance", nullable = false, precision = 15, scale = 2)
+    private BigDecimal walletBalance = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -41,78 +38,42 @@ public class Customer {
     private LocalDateTime updatedAt;
 
     @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
+    protected void onCreate() { createdAt = updatedAt = LocalDateTime.now(); }
 
     @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 
-    public Customer() {
-    }
+    public Customer() {}
 
     public Customer(Long userId, String name, String email) {
         this.userId = userId;
-        this.name = name;
-        this.email = email;
+        this.name   = name;
+        this.email  = email;
     }
 
-    public Long getId() {
-        return id;
-    }
+    // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getId()                              { return id; }
+    public void setId(Long id)                       { this.id = id; }
 
-    public Long getUserId() {
-        return userId;
-    }
+    public Long getUserId()                          { return userId; }
+    public void setUserId(Long userId)               { this.userId = userId; }
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
+    public String getName()                          { return name; }
+    public void setName(String name)                 { this.name = name; }
 
-    public String getName() {
-        return name;
-    }
+    public String getEmail()                         { return email; }
+    public void setEmail(String email)               { this.email = email; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public String getPhoneNumber()                   { return phoneNumber; }
+    public void setPhoneNumber(String p)             { this.phoneNumber = p; }
 
-    public String getEmail() {
-        return email;
-    }
+    public BigDecimal getWalletBalance()             { return walletBalance; }
+    public void setWalletBalance(BigDecimal b)       { this.walletBalance = b; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public boolean isActive()                        { return active; }
+    public void setActive(boolean active)            { this.active = active; }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
+    public LocalDateTime getCreatedAt()              { return createdAt; }
+    public LocalDateTime getUpdatedAt()              { return updatedAt; }
 }
