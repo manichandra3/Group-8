@@ -1,0 +1,53 @@
+# General
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Backend (Maven)
+target/
+**/target/
+*.class
+*.jar
+*.war
+!**/src/main/**/resources/*.jar
+!**/src/test/**/resources/*.jar
+.mvn/timing.properties
+# Exclude the wrapper jar if desired, but usually it is committed.
+# .mvn/wrapper/maven-wrapper.jar
+
+# Frontend (Node)
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Project Specific (Startup scripts & logs)
+.run/
+.logs/
+*.pid
+
+# Docker
+postgres_data/
