@@ -13,10 +13,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # since you created tables manually
+      ddl-auto: update
     show-sql: true
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
+
+portfolio:
+  service:
+    url: http://localhost:8084
