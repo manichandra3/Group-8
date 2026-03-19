@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useData } from "../context/DataContext";
 
 const styles = `
@@ -110,20 +110,6 @@ const styles = `
   .adm-logout-btn:hover { color: #fc8181; border-color: #fc818140; background: #fc818108; }
 `;
 
-const INITIAL_USERS = [
-  { id: 1, name: "Rahul Sharma", email: "rahul@gmail.com", joined: "Jan 12, 2024", status: "Active", color: "#4299e1" },
-  { id: 2, name: "Priya Mehta", email: "priya@gmail.com", joined: "Feb 3, 2024", status: "Blocked", color: "#fc8181" },
-  { id: 3, name: "Amit Patel", email: "amit@gmail.com", joined: "Mar 8, 2024", status: "Active", color: "#00d4aa" },
-];
-
-const INITIAL_ORDERS = [
-  { id: "10001", user: "Rahul", stock: "RELIANCE", exchange: "NSE", qty: 10, price: "₹2,942", type: "BUY", time: "09:31 AM" },
-  { id: "10002", user: "Amit", stock: "TCS", exchange: "BSE", qty: 5, price: "₹3,810", type: "SELL", time: "10:15 AM" },
-  { id: "10003", user: "Priya", stock: "INFY", exchange: "NSE", qty: 20, price: "₹1,522", type: "BUY", time: "11:02 AM" },
-  { id: "10004", user: "Rahul", stock: "HDFC", exchange: "NSE", qty: 3, price: "₹1,680", type: "SELL", time: "11:44 AM" },
-  { id: "10005", user: "Amit", stock: "WIPRO", exchange: "BSE", qty: 15, price: "₹492", type: "BUY", time: "01:10 PM" },
-];
-
 const NAV = [
   { id: "stats", icon: "▪", label: "Dashboard" },
   { id: "users", icon: "◈", label: "Users" },
@@ -136,23 +122,26 @@ export default function AdminDashboard({ onSignOut }) {
   const {
     stocks, addStock: ctxAddStock,
     companies, addCompany: ctxAddCompany,
-    deleteCompany
+    deleteCompany,
+    orders,
+    portfolios,
+    users, fetchUsers, deleteUser
   } = useData();
 
   const [activeTab, setActiveTab] = useState("stats");
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [orders] = useState(INITIAL_ORDERS);
   const [orderFilter, setOrderFilter] = useState("all");
+
+  useEffect(() => {
+    if (activeTab === "users" && fetchUsers) {
+      fetchUsers();
+    }
+  }, [activeTab]);
 
   const [stockForm, setStockForm] = useState({ companyId: "", price: "", totalShares: "" });
   const [stockSuccess, setStockSuccess] = useState(false);
 
   const [compForm, setCompForm] = useState({ name: "", symbol: "", sector: "Finance", desc: "" });
   const [compSuccess, setCompSuccess] = useState(false);
-
-  const toggleUser = (id) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === "Active" ? "Blocked" : "Active" } : u));
-  };
 
   const handleAddStock = () => {
     if (!stockForm.companyId || !stockForm.price) return;
@@ -184,7 +173,24 @@ export default function AdminDashboard({ onSignOut }) {
     setTimeout(() => setCompSuccess(false), 2500);
   };
 
-  const filteredOrders = orderFilter === "all" ? orders : orders.filter(o => o.type.toLowerCase() === orderFilter);
+  const filteredOrders = orderFilter === "all"
+    ? orders
+    : orders.filter(o => String(o.type || "").toLowerCase() === orderFilter);
+
+  const totalListedShares = useMemo(
+    () => stocks.reduce((sum, s) => sum + Number(s.totalShares || 0), 0),
+    [stocks]
+  );
+
+  const marketSummary = useMemo(
+    () => stocks.slice(0, 4).map((s) => ({
+      name: s.label,
+      val: Number(s.price || 0).toLocaleString("en-IN"),
+      chg: `${Number(s.changePct || 0).toFixed(2)}%`,
+      up: Number(s.changePct || 0) >= 0,
+    })),
+    [stocks]
+  );
 
   return (
     <>
@@ -233,10 +239,10 @@ export default function AdminDashboard({ onSignOut }) {
               </div>
               <div className="adm-stats-grid">
                 {[
-                  { label: "Total Users", value: "1,245", change: "▲ 8.2% this month", dir: "up", color: "green" },
-                  { label: "Total Orders", value: "8,932", change: "▲ 12.4% this week", dir: "up", color: "blue" },
-                  { label: "Total Volume", value: "₹4.2Cr", change: "▲ 3.1% today", dir: "up", color: "amber" },
-                  { label: "Active Traders", value: "842", change: "▼ 2.0% vs yesterday", dir: "down", color: "red" },
+                  { label: "Companies", value: `${companies.length}`, change: "From stock-service", dir: "up", color: "green" },
+                  { label: "Orders", value: `${orders.length}`, change: "From portfolio-service", dir: "up", color: "blue" },
+                  { label: "Listed Shares", value: totalListedShares.toLocaleString("en-IN"), change: "From stock-service", dir: "up", color: "amber" },
+                  { label: "Portfolios", value: `${portfolios.length}`, change: "From portfolio-service", dir: "up", color: "red" },
                 ].map(s => (
                   <div key={s.label} className={`adm-stat-card ${s.color}`}>
                     <div className="adm-stat-label">{s.label}</div>
@@ -256,8 +262,8 @@ export default function AdminDashboard({ onSignOut }) {
                     <tbody>
                       {orders.slice(0, 4).map(o => (
                         <tr key={o.id}>
-                          <td>{o.stock}</td>
-                          <td>{o.user}</td>
+                          <td>{o.sym}</td>
+                          <td>Current User</td>
                           <td><span className={`chip ${o.type.toLowerCase()}`}>{o.type}</span></td>
                           <td>{o.qty}</td>
                         </tr>
@@ -268,12 +274,7 @@ export default function AdminDashboard({ onSignOut }) {
                 <div className="adm-panel">
                   <div className="adm-panel-header"><span className="adm-panel-title">Market Summary</span></div>
                   <div className="adm-panel-body">
-                    {[
-                      { name: "NIFTY 50", val: "22,415", chg: "+0.8%", up: true },
-                      { name: "SENSEX", val: "73,852", chg: "+1.1%", up: true },
-                      { name: "BANK NIFTY", val: "48,120", chg: "-0.3%", up: false },
-                      { name: "MIDCAP", val: "44,310", chg: "+0.5%", up: true },
-                    ].map(m => (
+                    {marketSummary.map(m => (
                       <div key={m.name} className="adm-market-row">
                         <span className="adm-market-name">{m.name}</span>
                         <div>
@@ -282,6 +283,11 @@ export default function AdminDashboard({ onSignOut }) {
                         </div>
                       </div>
                     ))}
+                    {marketSummary.length === 0 && (
+                      <div className="adm-market-row">
+                        <span className="adm-market-name">No backend market rows available</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -304,34 +310,35 @@ export default function AdminDashboard({ onSignOut }) {
               <div className="adm-panel">
                 <div className="adm-panel-header">
                   <span className="adm-panel-title">Registered Users</span>
-                  <span style={{ fontSize: 11, color: "#4a5568" }}>{users.length} total</span>
                 </div>
-                <table className="adm-table">
-                  <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>
-                    {users.map(u => (
-                      <tr key={u.id}>
-                        <td>
-                          <div className="adm-user-row">
-                            <div className="adm-avatar" style={{ color: u.color }}>{u.name[0]}</div>
-                            {u.name}
-                          </div>
-                        </td>
-                        <td>{u.email}</td>
-                        <td>{u.joined}</td>
-                        <td><span className={`chip ${u.status.toLowerCase()}`}>{u.status}</span></td>
-                        <td>
-                          <button
-                            className={`adm-btn ${u.status === "Active" ? "danger" : "primary"}`}
-                            onClick={() => toggleUser(u.id)}
-                          >
-                            {u.status === "Active" ? "Block" : "Unblock"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="adm-table-wrap">
+                  <table className="adm-table">
+                    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {(users || []).map(u => (
+                        <tr key={u.id}>
+                          <td>{u.id}</td>
+                          <td>{u.username}</td>
+                          <td>{u.email}</td>
+                          <td><span className={`chip ${u.role === 'ADMIN' ? 'nse' : 'active'}`}>{u.role}</span></td>
+                          <td>{u.enabled ? "Active" : "Disabled"}</td>
+                          <td>
+                            <button 
+                                className="adm-btn danger" 
+                                style={{fontSize: 9, padding: '4px 8px'}}
+                                onClick={() => deleteUser && deleteUser(u.id)}
+                            >
+                                Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!users || users.length === 0) && (
+                        <tr><td colSpan="6" style={{ textAlign: "center", padding: 20 }}>No users found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -355,17 +362,16 @@ export default function AdminDashboard({ onSignOut }) {
               <div className="adm-panel">
                 <div className="adm-panel-header"><span className="adm-panel-title">All Orders</span></div>
                 <table className="adm-table">
-                  <thead><tr><th>Order ID</th><th>User</th><th>Stock</th><th>Exchange</th><th>Qty</th><th>Price</th><th>Type</th><th>Time</th></tr></thead>
+                  <thead><tr><th>Order ID</th><th>Stock</th><th>Qty</th><th>Price</th><th>Type</th><th>Status</th><th>Time</th></tr></thead>
                   <tbody>
                     {filteredOrders.map(o => (
                       <tr key={o.id}>
                         <td>#{o.id}</td>
-                        <td>{o.user}</td>
-                        <td>{o.stock}</td>
-                        <td><span className={`chip ${o.exchange.toLowerCase()}`}>{o.exchange}</span></td>
+                        <td>{o.sym}</td>
                         <td>{o.qty}</td>
-                        <td>{o.price}</td>
+                        <td>₹{Number(o.price || 0).toLocaleString("en-IN")}</td>
                         <td><span className={`chip ${o.type.toLowerCase()}`}>{o.type}</span></td>
+                        <td><span className="chip active">{o.status}</span></td>
                         <td>{o.time}</td>
                       </tr>
                     ))}

@@ -1,21 +1,16 @@
 package com.sharebazaar.stock.controller;
 
+import com.sharebazaar.stock.domain.SharePriceHistory;
 import com.sharebazaar.stock.dto.ShareRequest;
 import com.sharebazaar.stock.dto.ShareResponse;
 import com.sharebazaar.stock.dto.ShareUpdateRequest;
+import com.sharebazaar.stock.dto.MarketImpactRequest;
+import com.sharebazaar.stock.service.MarketSimulationService;
 import com.sharebazaar.stock.service.ShareService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -24,9 +19,25 @@ import java.util.List;
 public class ShareController {
 
     private final ShareService shareService;
+    private final MarketSimulationService marketSimulationService;
 
-    public ShareController(ShareService shareService) {
+    public ShareController(ShareService shareService, MarketSimulationService marketSimulationService) {
         this.shareService = shareService;
+        this.marketSimulationService = marketSimulationService;
+    }
+
+    @PostMapping("/{id}/impact")
+    @ResponseStatus(HttpStatus.OK)
+    public void applyMarketImpact(@PathVariable Long id, @RequestBody MarketImpactRequest request) {
+        marketSimulationService.applyMarketImpact(id, request.getQuantity(), request.isBuy());
+    }
+
+    @PostMapping("/company/{companyId}/impact")
+    @ResponseStatus(HttpStatus.OK)
+    public void applyMarketImpactByCompany(@PathVariable Long companyId, @RequestBody MarketImpactRequest request) {
+        // Find share by company ID
+        Long shareId = shareService.getShareByCompanyId(companyId).getId();
+        marketSimulationService.applyMarketImpact(shareId, request.getQuantity(), request.isBuy());
     }
 
     @PostMapping
@@ -43,6 +54,11 @@ public class ShareController {
     @GetMapping("/{id}")
     public ShareResponse getShareById(@PathVariable Long id) {
         return shareService.getShareById(id);
+    }
+
+    @GetMapping("/{id}/history")
+    public List<SharePriceHistory> getShareHistory(@PathVariable Long id) {
+        return shareService.getSharePriceHistory(id);
     }
 
     @GetMapping("/company/{companyId}")

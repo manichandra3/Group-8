@@ -8,15 +8,17 @@ public class UserDto implements Serializable {
     private String username;
     private String email;
     private String role;
+    private boolean enabled;
 
     public UserDto() {
     }
 
-    public UserDto(Long id, String username, String email, String role) {
+    public UserDto(Long id, String username, String email, String role, boolean enabled) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.role = role;
+        this.enabled = enabled;
     }
 
     public Long getId() {
@@ -49,5 +51,13 @@ public class UserDto implements Serializable {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

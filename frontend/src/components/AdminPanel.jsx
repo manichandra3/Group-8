@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 
 // Reusable form modal
-function EditForm({ title, fields, initialData, onSave, onCancel, companies }) {
+function EditForm({ title, fields, initialData, onSave, onCancel }) {
   const [formData, setFormData] = useState(initialData || {});
 
   const handleChange = (e) => {
@@ -58,9 +58,6 @@ export default function AdminPanel() {
   const {
     stocks, addStock, updateStock, deleteStock,
     companies, addCompany, updateCompany, deleteCompany,
-    mfHoldings, addMF, updateMF, deleteMF,
-    sips, addSIP, updateSIP, deleteSIP,
-    ipos, addIPO, updateIPO, deleteIPO,
     orders, addOrder, updateOrder, deleteOrder,
   } = useData();
 
@@ -108,9 +105,6 @@ export default function AdminPanel() {
       switch (editing.type) {
         case 'company': addCompany(formData); break;
         case 'stock': addStock(formData); break;
-        case 'mf': addMF(formData); break;
-        case 'sip': addSIP(formData); break;
-        case 'ipo': addIPO(formData); break;
         case 'order': addOrder(formData); break;
         default: break;
       }
@@ -118,9 +112,6 @@ export default function AdminPanel() {
       switch (editing.type) {
         case 'company': updateCompany(editing.id, formData); break;
         case 'stock': updateStock(editing.id, formData); break;
-        case 'mf': updateMF(editing.id, formData); break;
-        case 'sip': updateSIP(editing.id, formData); break;
-        case 'ipo': updateIPO(editing.id, formData); break;
         case 'order': updateOrder(editing.id, formData); break;
         default: break;
       }
@@ -148,29 +139,6 @@ export default function AdminPanel() {
     ...(editing?.action === 'add' ? [{ name: 'companyId', label: 'Company', type: 'select', options: companyOptions }] : []),
   ];
 
-  const mfFields = [
-    { name: 'name', label: 'Fund Name' },
-    { name: 'type', label: 'Category' },
-    { name: 'invested', label: 'Invested', type: 'number' },
-    { name: 'current', label: 'Current', type: 'number' },
-    { name: 'returns', label: 'Returns %', type: 'number' },
-    { name: 'rating', label: 'Rating (1-5)', type: 'number' },
-  ];
-  const sipFields = [
-    { name: 'name', label: 'Fund Name' },
-    { name: 'amt', label: 'Amount', type: 'number' },
-    { name: 'date', label: 'Date (e.g. 5th)' },
-    { name: 'status', label: 'Status' },
-    { name: 'nextDate', label: 'Next Date' },
-  ];
-  const ipoFields = [
-    { name: 'name', label: 'IPO Name' },
-    { name: 'price', label: 'Price Band' },
-    { name: 'open', label: 'Open Date' },
-    { name: 'close', label: 'Close Date' },
-    { name: 'status', label: 'Status' },
-    { name: 'gmp', label: 'GMP' },
-  ];
   const orderFields = [
     { name: 'sym', label: 'Symbol' },
     { name: 'type', label: 'Type (BUY/SELL)' },
@@ -191,9 +159,7 @@ export default function AdminPanel() {
           fields={
             editing.type === 'company' ? companyFields :
             editing.type === 'stock' ? stockFields :
-            editing.type === 'mf' ? mfFields :
-            editing.type === 'sip' ? sipFields :
-            editing.type === 'ipo' ? ipoFields : orderFields
+            orderFields
           }
           initialData={editing.data}
           onSave={handleSave}
@@ -203,12 +169,6 @@ export default function AdminPanel() {
 
       {renderList('Companies', companies, 'company', companyFields)}
       {renderList('Shares (Stocks)', stocks, 'stock', stockFields)}
-      
-      <hr style={{borderColor: '#2d2d5f', margin: '40px 0'}} />
-      <h3>Mock Data (Frontend Only)</h3>
-      {renderList('Mutual Funds', mfHoldings, 'mf', mfFields)}
-      {renderList('SIPs', sips, 'sip', sipFields)}
-      {renderList('IPOs', ipos, 'ipo', ipoFields)}
       {renderList('Orders', orders, 'order', orderFields)}
     </div>
   );

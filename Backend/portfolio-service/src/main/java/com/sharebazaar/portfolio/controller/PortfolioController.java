@@ -41,9 +41,11 @@ public class PortfolioController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PortfolioResponse>> getMyPortfolios(Authentication authentication) {
+    public ResponseEntity<List<PortfolioResponse>> getMyPortfolios(Authentication authentication,
+                                                                   HttpServletRequest httpRequest) {
         Long userId = Long.parseLong(authentication.getName());
-        List<PortfolioResponse> portfolios = portfolioService.getCustomerPortfolios(userId);
+        String userEmail = (String) httpRequest.getAttribute("userEmail");
+        List<PortfolioResponse> portfolios = portfolioService.getCustomerPortfolios(userId, userEmail);
         return ResponseEntity.ok(portfolios);
     }
 

@@ -12,10 +12,12 @@ import static org.mockito.Mockito.never;
 import com.sharebazaar.core.shared.exception.GlobalException;
 import com.sharebazaar.stock.domain.Company;
 import com.sharebazaar.stock.domain.Share;
+import com.sharebazaar.stock.domain.SharePriceHistory;
 import com.sharebazaar.stock.dto.ShareRequest;
 import com.sharebazaar.stock.dto.ShareResponse;
 import com.sharebazaar.stock.dto.ShareUpdateRequest;
 import com.sharebazaar.stock.repository.CompanyRepository;
+import com.sharebazaar.stock.repository.SharePriceHistoryRepository;
 import com.sharebazaar.stock.repository.ShareRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,11 +39,14 @@ class ShareServiceTest {
     @Mock
     private CompanyRepository companyRepository;
 
+    @Mock
+    private SharePriceHistoryRepository sharePriceHistoryRepository;
+
     private ShareService shareService;
 
     @BeforeEach
     void setUp() {
-        shareService = new ShareService(shareRepository, companyRepository);
+        shareService = new ShareService(shareRepository, companyRepository, sharePriceHistoryRepository);
     }
 
     // ---- Helper methods ----
@@ -103,9 +108,15 @@ class ShareServiceTest {
         assertEquals(8000L, response.getAvailableShares());
         assertEquals(new BigDecimal("150.50"), response.getPricePerShare());
 
-        ArgumentCaptor<Share> captor = ArgumentCaptor.forClass(Share.class);
-        verify(shareRepository).save(captor.capture());
-        assertEquals(company, captor.getValue().getCompany());
+        ArgumentCaptor<Share> shareCaptor = ArgumentCaptor.forClass(Share.class);
+        verify(shareRepository).save(shareCaptor.capture());
+        assertEquals(company, shareCaptor.getValue().getCompany());
+
+        ArgumentCaptor<SharePriceHistory> historyCaptor = ArgumentCaptor.forClass(SharePriceHistory.class);
+        verify(sharePriceHistoryRepository).save(historyCaptor.capture());
+        assertEquals(shareCaptor.getValue(), historyCaptor.getValue().getShare());
+        assertEquals(new BigDecimal("150.50"), historyCaptor.getValue().getPrice());
+        assertNotNull(historyCaptor.getValue().getTimestamp());
     }
 
     @Test
@@ -256,6 +267,30 @@ class ShareServiceTest {
         assertEquals(20000L, response.getTotalShares());
         assertEquals(15000L, response.getAvailableShares());
         assertEquals(new BigDecimal("200.00"), response.getPricePerShare());
+
+        ArgumentCaptor<SharePriceHistory> historyCaptor = ArgumentCaptor.forClass(SharePriceHistory.class);
+        verify(sharePriceHistoryRepository).save(historyCaptor.capture());
+        assertEquals(existing, historyCaptor.getValue().getShare());
+        assertEquals(new BigDecimal("200.00"), historyCaptor.getValue().getPrice());
+        assertNotNull(historyCaptor.getValue().getTimestamp());
+    }
+
+    @Test
+    void updateShareShouldNotSaveHistoryWhenPriceUnchanged() {
+        Company company = createCompany(1L, "Infosys", "INFY");
+        Share existing = createShare(1L, company, 10000L, 8000L, new BigDecimal("150.00"));
+
+        ShareUpdateRequest request = new ShareUpdateRequest();
+        request.setTotalShares(20000L);
+        request.setPricePerShare(new BigDecimal("150.00")); // Same price
+
+        when(shareRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(shareRepository.save(any(Share.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        shareService.updateShare(1L, request);
+
+        verify(sharePriceHistoryRepository, never()).save(any(SharePriceHistory.class));
     }
 
     @Test
@@ -351,5 +386,25 @@ class ShareServiceTest {
         assertEquals("Share not found", exception.getMessage());
 
         verify(shareRepository, never()).delete(any());
+    }
+
+    // ---- getSharePriceHistory Tests ----
+
+    @Test
+    void getSharePriceHistoryShouldReturnHistory() {
+        Company company = createCompany(1L, "Infosys", "INFY");
+        Share share = createShare(1L, company, 10000L, 8000L, new BigDecimal("150.00"));
+
+        SharePriceHistory history1 = new SharePriceHistory(share, new BigDecimal("100.00"), java.time.LocalDateTime.now().minusDays(1));
+        SharePriceHistory history2 = new SharePriceHistory(share, new BigDecimal("150.00"), java.time.LocalDateTime.now());
+
+        when(sharePriceHistoryRepository.findByShareIdOrderByTimestampDesc(1L))
+                .thenReturn(List.of(history2, history1));
+
+        List<SharePriceHistory> result = shareService.getSharePriceHistory(1L);
+
+        assertEquals(2, result.size());
+        assertEquals(new BigDecimal("150.00"), result.get(0).getPrice());
+        assertEquals(new BigDecimal("100.00"), result.get(1).getPrice());
     }
 }

@@ -1,65 +1,41 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { API_BASE_URL } from '../config';
-
-// Initial static data (copied from your original Home.jsx)
-const initialPortfolio = {
-  invested: 248500,
-  current: 312840,
-  todayPnl: 3420,
-  todayPct: 1.11,
-  totalPnl: 64340,
-  totalPct: 25.89,
-};
-
-const initialMFHoldings = [
-  { id: 1, name: "Axis Bluechip Fund", type: "Large Cap", invested: 50000, current: 63200, returns: 26.4, rating: 5 },
-  { id: 2, name: "Mirae Emerging Bluechip", type: "Mid Cap", invested: 30000, current: 41100, returns: 37.0, rating: 5 },
-  { id: 3, name: "HDFC Flexi Cap Fund", type: "Flexi Cap", invested: 40000, current: 49800, returns: 24.5, rating: 4 },
-  { id: 4, name: "Parag Parikh Flexi Cap", type: "Flexi Cap", invested: 25000, current: 31200, returns: 24.8, rating: 5 },
-];
-
-const initialSIPs = [
-  { id: 1, name: "Axis Bluechip Fund", amt: 2000, date: "5th", status: "Active", nextDate: "May 5" },
-  { id: 2, name: "Mirae Emerging", amt: 1500, date: "10th", status: "Active", nextDate: "May 10" },
-  { id: 3, name: "Parag Parikh Flexi", amt: 3000, date: "15th", status: "Paused", nextDate: "—" },
-];
-
-const initialIPOs = [
-  { id: 1, name: "TechNova Systems", price: "₹210–₹220", open: "Apr 28", close: "Apr 30", status: "open", gmp: "+₹45" },
-  { id: 2, name: "BharatSolar Ltd", price: "₹180–₹195", open: "May 3", close: "May 5", status: "upcoming", gmp: "+₹28" },
-  { id: 3, name: "RapidPay Fintech", price: "₹320–₹340", open: "Mar 10", close: "Mar 12", status: "listed", gmp: "₹388" },
-  { id: 4, name: "GreenHarvest Agro", price: "₹95–₹100", open: "May 8", close: "May 10", status: "upcoming", gmp: "+₹12" },
-];
-
-const initialOrders = [
-  { id: 1, sym: "RELIANCE", type: "BUY", qty: 5, price: 2841.0, status: "COMPLETE", time: "10:22 AM" },
-  { id: 2, sym: "TCS", type: "SELL", qty: 2, price: 3905.5, status: "COMPLETE", time: "11:05 AM" },
-  { id: 3, sym: "INFY", type: "BUY", qty: 10, price: 1495.0, status: "PENDING", time: "1:30 PM" },
-  { id: 4, sym: "WIPRO", type: "BUY", qty: 20, price: 445.0, status: "REJECTED", time: "2:10 PM" },
-];
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const [portfolio, setPortfolio] = useState(initialPortfolio);
-  const [mfHoldings, setMfHoldings] = useState(initialMFHoldings);
-  const [sips, setSips] = useState(initialSIPs);
-  const [ipos, setIpos] = useState(initialIPOs);
-  const [orders, setOrders] = useState(initialOrders);
-  
-  // Data fetched from backend
+  const [portfolios, setPortfolios] = useState([]);
+  const [activePortfolioId, setActivePortfolioId] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [stocks, setStocks] = useState([]); // This will be 'shares' from backend
+  const [stocks, setStocks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [marketLoading, setMarketLoading] = useState(false);
 
   const [token, setToken] = useState(localStorage.getItem("token"));
 
-  // Fetch data on load or when token changes
+  const authHeaders = (includeJson = false) => {
+    const headers = {};
+    if (includeJson) headers["Content-Type"] = "application/json";
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
+  };
+
   useEffect(() => {
     if (token) {
       fetchCompanies();
       fetchShares();
+      fetchPortfolios();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (token && activePortfolioId) {
+      fetchTransactions(activePortfolioId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, activePortfolioId]);
 
   const login = (newToken, newRole, newUsername) => {
     localStorage.setItem("token", newToken);
@@ -73,12 +49,17 @@ export const DataProvider = ({ children }) => {
     localStorage.removeItem("role");
     localStorage.removeItem("username");
     setToken(null);
+    setCompanies([]);
+    setStocks([]);
+    setPortfolios([]);
+    setTransactions([]);
+    setActivePortfolioId(null);
   };
 
   const fetchCompanies = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/companies`, {
-          headers: { "Authorization": `Bearer ${token}` }
+        headers: authHeaders()
       });
       if (res.ok) {
         const data = await res.json();
@@ -90,26 +71,73 @@ export const DataProvider = ({ children }) => {
   };
 
   const fetchShares = async () => {
+    setMarketLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/shares`, {
-          headers: { "Authorization": `Bearer ${token}` }
+        headers: authHeaders()
       });
       if (res.ok) {
         const data = await res.json();
-        // Transform backend share data to frontend stock format
         const transformed = data.map(share => ({
           id: share.id,
           label: share.companySymbol,
+          companyName: share.companyName,
           price: share.pricePerShare,
-          changePct: 0.0, // Backend doesn't have daily change yet
+          change: 0,
+          changePct: 0,
           up: true,
           companyId: share.companyId,
-          totalShares: share.totalShares
+          totalShares: share.totalShares,
+          availableShares: share.availableShares,
+          currency: "INR"
         }));
         setStocks(transformed);
       }
     } catch (err) {
       console.error("Failed to fetch shares", err);
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
+  const fetchPortfolios = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/portfolios`, {
+        headers: authHeaders()
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPortfolios(data);
+
+        if (data.length > 0) {
+          const portfolioId = activePortfolioId ?? data[0].id;
+          setActivePortfolioId(portfolioId);
+          fetchTransactions(portfolioId);
+        } else {
+          setActivePortfolioId(null);
+          setTransactions([]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch portfolios", err);
+    }
+  };
+
+  const fetchTransactions = async (portfolioId) => {
+    if (!portfolioId) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/transactions/portfolio/${portfolioId}`, {
+        headers: authHeaders()
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch transactions", err);
     }
   };
 
@@ -118,10 +146,7 @@ export const DataProvider = ({ children }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/companies`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: authHeaders(true),
         body: JSON.stringify(newCompany)
       });
       if (res.ok) {
@@ -136,10 +161,7 @@ export const DataProvider = ({ children }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/companies/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: authHeaders(true),
         body: JSON.stringify(updated)
       });
       if (res.ok) {
@@ -154,9 +176,7 @@ export const DataProvider = ({ children }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/companies/${id}`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        headers: authHeaders()
       });
       if (res.ok) {
         fetchCompanies();
@@ -166,18 +186,59 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  // CRUD for Users
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users`, {
+        headers: authHeaders()
+      });
+      if (res.ok) {
+        setUsers(await res.json());
+      }
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    }
+  };
+
+  const deleteUser = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error("Failed to delete user", err);
+    }
+  };
+
+  const updateUser = async (id, updated) => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/users/${id}`, {
+            method: "PUT",
+            headers: authHeaders(true),
+            body: JSON.stringify(updated)
+        });
+        if (res.ok) {
+            fetchUsers();
+        }
+      } catch (err) {
+          console.error("Failed to update user", err);
+      }
+  };
+
   // CRUD for Shares (Stocks)
   const addStock = async (newShare) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/shares`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: authHeaders(true),
         body: JSON.stringify({
             companyId: newShare.companyId,
             totalShares: newShare.totalShares,
+            availableShares: newShare.totalShares,
             pricePerShare: newShare.price
         })
       });
@@ -193,19 +254,14 @@ export const DataProvider = ({ children }) => {
     try {
       // Backend expects ShareUpdateRequest: { pricePerShare, availableShares }
       const payload = {
-          pricePerShare: updated.price,
-          // We don't expose availableShares in frontend edit yet, so maybe keep it or default
-          // For now, let's assume we are updating price. 
-          // If we need to update companyId or totalShares, backend API might need adjustment or we use different endpoint.
-          // Based on ShareController, PUT /api/shares/{id} takes ShareUpdateRequest
+          totalShares: Number(updated.totalShares || 1),
+          availableShares: Number(updated.availableShares ?? updated.totalShares ?? 0),
+          pricePerShare: Number(updated.price || 0)
       };
       
       const res = await fetch(`${API_BASE_URL}/api/shares/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: authHeaders(true),
         body: JSON.stringify(payload)
       });
       if (res.ok) {
@@ -220,9 +276,7 @@ export const DataProvider = ({ children }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/shares/${id}`, {
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        headers: authHeaders()
       });
       if (res.ok) {
         fetchShares();
@@ -232,56 +286,123 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  // Keep other local state for now
-  const addMF = (newMF) => {
-    setMfHoldings(prev => [...prev, { ...newMF, id: Date.now() }]);
-  };
-  const updateMF = (id, updated) => {
-    setMfHoldings(prev => prev.map(m => m.id === id ? { ...m, ...updated } : m));
-  };
-  const deleteMF = (id) => {
-    setMfHoldings(prev => prev.filter(m => m.id !== id));
+  const activePortfolio = useMemo(
+    () => portfolios.find((p) => p.id === activePortfolioId) || portfolios[0] || null,
+    [portfolios, activePortfolioId]
+  );
+
+  const portfolio = useMemo(() => {
+    if (!activePortfolio) {
+      return {
+        invested: 0,
+        current: 0,
+        todayPnl: 0,
+        todayPct: 0,
+        totalPnl: 0,
+        totalPct: 0,
+      };
+    }
+
+    const priceBySymbol = new Map(stocks.map((s) => [s.label, Number(s.price) || 0]));
+
+    let invested = 0;
+    let current = 0;
+
+    (activePortfolio.holdings || []).forEach((h) => {
+      const qty = Number(h.quantity) || 0;
+      const avgPrice = Number(h.averagePrice) || 0;
+      const lastPrice = priceBySymbol.get(h.companySymbol) ?? avgPrice;
+
+      invested += Number(h.totalInvestment) || qty * avgPrice;
+      current += qty * lastPrice;
+    });
+
+    const totalPnl = current - invested;
+    const totalPct = invested > 0 ? (totalPnl / invested) * 100 : 0;
+
+    return {
+      invested,
+      current,
+      todayPnl: 0,
+      todayPct: 0,
+      totalPnl,
+      totalPct,
+    };
+  }, [activePortfolio, stocks]);
+
+  const orders = useMemo(
+    () => (transactions || []).map((t) => ({
+      id: t.id,
+      sym: t.companySymbol,
+      type: t.transactionType,
+      qty: t.quantity,
+      price: Number(t.pricePerShare) || 0,
+      status: "COMPLETE",
+      timestamp: t.transactionDate || null,
+      time: t.transactionDate
+        ? new Date(t.transactionDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : "--:--",
+    })),
+    [transactions]
+  );
+
+  const addOrder = async (newOrder) => {
+    if (!activePortfolio?.id) {
+      console.warn("No active portfolio selected");
+      return;
+    }
+
+    const type = String(newOrder.type || "BUY").toUpperCase();
+    const endpoint = type === "SELL" ? "sell" : "buy";
+    const payload = {
+      portfolioId: activePortfolio.id,
+      companySymbol: newOrder.sym || newOrder.companySymbol,
+      quantity: Number(newOrder.qty || newOrder.quantity || 0),
+      pricePerShare: Number(newOrder.price || newOrder.pricePerShare || 0),
+    };
+
+    if (!payload.companySymbol || payload.quantity <= 0 || payload.pricePerShare <= 0) {
+      console.warn("Invalid order payload", payload);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/transactions/${endpoint}`, {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        await fetchPortfolios();
+      }
+    } catch (err) {
+      console.error("Failed to place order", err);
+    }
   };
 
-  const addSIP = (newSIP) => {
-    setSips(prev => [...prev, { ...newSIP, id: Date.now() }]);
-  };
-  const updateSIP = (id, updated) => {
-    setSips(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
-  };
-  const deleteSIP = (id) => {
-    setSips(prev => prev.filter(s => s.id !== id));
+  const updateOrder = () => {
+    console.warn("Order update API is not available in backend");
   };
 
-  const addIPO = (newIPO) => {
-    setIpos(prev => [...prev, { ...newIPO, id: Date.now() }]);
-  };
-  const updateIPO = (id, updated) => {
-    setIpos(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
-  };
-  const deleteIPO = (id) => {
-    setIpos(prev => prev.filter(i => i.id !== id));
-  };
-
-  const addOrder = (newOrder) => {
-    setOrders(prev => [...prev, { ...newOrder, id: Date.now() }]);
-  };
-  const updateOrder = (id, updated) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
-  };
-  const deleteOrder = (id) => {
-    setOrders(prev => prev.filter(o => o.id !== id));
+  const deleteOrder = () => {
+    console.warn("Order delete API is not available in backend");
   };
 
   return (
     <DataContext.Provider value={{
-      portfolio, setPortfolio,
-      mfHoldings, addMF, updateMF, deleteMF,
-      sips, addSIP, updateSIP, deleteSIP,
-      ipos, addIPO, updateIPO, deleteIPO,
+      token,
+      marketLoading,
+      portfolio,
+      portfolios,
+      activePortfolio,
+      activePortfolioId,
+      setActivePortfolioId,
+      refreshPortfolioData: fetchPortfolios,
       orders, addOrder, updateOrder, deleteOrder,
       stocks, addStock, updateStock, deleteStock,
       companies, addCompany, updateCompany, deleteCompany,
+      users, fetchUsers, updateUser, deleteUser,
       login, logout
     }}>
       {children}
@@ -289,4 +410,5 @@ export const DataProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useData = () => useContext(DataContext);

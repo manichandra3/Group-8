@@ -11,10 +11,10 @@ const TRUST_STATS = [
   { val: "SEBI", lbl: "Regulated" },
 ];
 
-export default function Login({ quotes }) {
+export default function Login() {
 
   const navigate = useNavigate();
-  const { login } = useData();
+  const { login, stocks } = useData();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,7 +69,7 @@ export default function Login({ quotes }) {
     setLoading(false);
   };
 
-  const chips = quotes
+  const chips = stocks
     ?.filter((q) => ["NIFTY 50", "SENSEX", "INFY"].includes(q.label))
     .slice(0, 3);
 

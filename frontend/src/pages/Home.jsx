@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useData } from "../context/DataContext";  // <-- import central data store
 import Clock from "../components/Clock";
 import AdminPanel from "../components/AdminPanel";   // <-- import admin panel component
+import { getShareHistory } from "../stockService";
 
 /* ─── Mini sparkline SVG ─── */
 function Sparkline({ up }) {
@@ -17,18 +18,271 @@ function Sparkline({ up }) {
   );
 }
 
+function PriceHistoryGraph({ series }) {
+  const values = (series || []).map((v) => Number(v)).filter((v) => Number.isFinite(v) && v > 0);
+  if (values.length === 0) return <Sparkline up={true} />;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, 1);
+  const w = 72;
+  const h = 22;
+
+  const points = values
+    .map((v, i) => {
+      const x = (i / Math.max(values.length - 1, 1)) * w;
+      const y = h - ((v - min) / range) * (h - 2) - 1;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  const up = values[values.length - 1] >= values[0];
+
+  return (
+    <svg width={w} height={h} style={{ display: "block" }}>
+      <polyline
+        points={points}
+        fill="none"
+        stroke={up ? "#10b981" : "#ef4444"}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* ─── Large Chart for Details Modal ─── */
+function LargeHistoryChart({ series }) {
+  const values = (series || []).map((v) => Number(v)).filter((v) => Number.isFinite(v) && v > 0);
+  if (values.length === 0) return <div style={{color: "var(--text-muted)", padding: 20}}>No history available</div>;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, 1);
+  const w = 500;
+  const h = 200;
+
+  const points = values
+    .map((v, i) => {
+      const x = (i / Math.max(values.length - 1, 1)) * w;
+      const y = h - ((v - min) / range) * (h - 20) - 10;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  const up = values[values.length - 1] >= values[0];
+  const color = up ? "#10b981" : "#ef4444";
+
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}>
+        {/* Grid lines */}
+        <line x1="0" y1="0" x2={w} y2="0" stroke="var(--glass-border-s)" strokeDasharray="4 4" />
+        <line x1="0" y1={h} x2={w} y2={h} stroke="var(--glass-border-s)" strokeDasharray="4 4" />
+        
+        {/* The Line */}
+        <polyline
+          points={points}
+          fill="none"
+          stroke={color}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        
+        {/* Start/End Dots */}
+        {values.length > 0 && (
+            <>
+                <circle cx="0" cy={h - ((values[0] - min) / range) * (h - 20) - 10} r="4" fill={color} />
+                <circle cx={w} cy={h - ((values[values.length-1] - min) / range) * (h - 20) - 10} r="4" fill={color} />
+            </>
+        )}
+      </svg>
+      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12, color: "var(--text-muted)", fontFamily: "Share Tech Mono, monospace" }}>
+        <span>Low: ₹{min.toFixed(2)}</span>
+        <span>High: ₹{max.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Stock Details Modal ─── */
+function StockDetailsModal({ isOpen, onClose, stock, history }) {
+  if (!isOpen || !stock) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content large" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{stock.label} <span style={{fontSize: 12, color: "var(--text-muted)", marginLeft: 8}}>NSE</span></h3>
+          <button onClick={onClose} className="close-btn">×</button>
+        </div>
+        <div className="modal-body">
+            <div style={{display: "flex", justifyContent: "space-between", marginBottom: 20, alignItems: "flex-end"}}>
+                <div>
+                    <div style={{fontSize: 12, color: "var(--text-muted)"}}>Current Price</div>
+                    <div style={{fontSize: 28, fontWeight: 800, fontFamily: "Share Tech Mono, monospace", color: "var(--text-bright)"}}>
+                        ₹{Number(stock.price).toLocaleString("en-IN")}
+                    </div>
+                </div>
+                 <div className={stock.up ? "pos" : "neg"} style={{fontSize: 16, fontWeight: 600}}>
+                    {stock.up ? "▲" : "▼"} {Math.abs(stock.changePct)}%
+                 </div>
+            </div>
+            
+            <div style={{ background: "var(--glass-1)", padding: 20, borderRadius: 12, border: "1px solid var(--glass-border-s)" }}>
+                <LargeHistoryChart series={history} />
+            </div>
+
+            <div style={{marginTop: 20, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5}}>
+                <p>Company: <strong style={{color: "var(--text-bright)"}}>{stock.label}</strong></p>
+                <p>Exchange: NSE</p>
+                <p>Sector: Equity</p>
+            </div>
+        </div>
+      </div>
+      <style>{`
+        .modal-content.large {
+            max-width: 600px;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ─── Trade Modal ─── */
+function TradeModal({ isOpen, onClose, type, stock, onConfirm }) {
+  const [qty, setQty] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen || !stock) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    await onConfirm({
+      type,
+      companySymbol: stock.label,
+      quantity: Number(qty),
+      pricePerShare: Number(stock.price)
+    });
+    setLoading(false);
+    onClose();
+  };
+
+  const total = (Number(qty) * Number(stock.price)).toFixed(2);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>{type === "BUY" ? "Buy Shares" : "Sell Shares"}</h3>
+          <button onClick={onClose} className="close-btn">×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="stock-info">
+              <span className="stock-label">{stock.label}</span>
+              <span className="stock-price">₹{stock.price}</span>
+            </div>
+            
+            <div className="form-group">
+              <label>Quantity</label>
+              <input 
+                type="number" 
+                min="1" 
+                value={qty} 
+                onChange={(e) => setQty(e.target.value)}
+                className="modal-input"
+                autoFocus
+              />
+            </div>
+
+            <div className="summary-row">
+              <span>Total Amount</span>
+              <span className="total-val">₹{total}</span>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="btn-cancel">Cancel</button>
+            <button type="submit" className={`btn-confirm ${type === "BUY" ? "buy" : "sell"}`} disabled={loading}>
+              {loading ? "Processing..." : type}
+            </button>
+          </div>
+        </form>
+      </div>
+      <style>{`
+        .modal-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(4px); z-index: 100;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+          background: #0f172a; border: 1px solid var(--glass-border);
+          border-radius: 16px; width: 100%; max-width: 360px;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+          animation: slideUp 0.2s ease-out;
+        }
+        .modal-header {
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 16px 20px; border-bottom: 1px solid var(--glass-border-s);
+        }
+        .modal-header h3 { margin: 0; font-size: 16px; color: var(--text-bright); }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+        .modal-body { padding: 20px; }
+        .stock-info {
+          display: flex; justify-content: space-between; align-items: center;
+          margin-bottom: 20px; padding: 12px; background: var(--glass-1);
+          border-radius: 8px;
+        }
+        .stock-label { font-weight: 700; color: var(--text-bright); }
+        .stock-price { font-family: 'Share Tech Mono', monospace; color: var(--text-body); }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+        .modal-input {
+          width: 100%; background: var(--glass-2); border: 1px solid var(--glass-border-s);
+          padding: 10px; border-radius: 8px; color: var(--text-bright);
+          font-family: 'Share Tech Mono', monospace; font-size: 16px;
+        }
+        .summary-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+        .total-val { color: var(--text-bright); font-weight: 700; font-family: 'Share Tech Mono', monospace; }
+        .modal-footer {
+          padding: 16px 20px; border-top: 1px solid var(--glass-border-s);
+          display: flex; justify-content: flex-end; gap: 10px;
+        }
+        .btn-cancel {
+          background: transparent; border: 1px solid var(--glass-border-s);
+          color: var(--text-muted); padding: 8px 16px; border-radius: 8px; cursor: pointer;
+        }
+        .btn-confirm {
+          padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none;
+          color: #fff;
+        }
+        .btn-confirm.buy { background: var(--green); }
+        .btn-confirm.sell { background: var(--red); }
+        .btn-confirm:disabled { opacity: 0.7; cursor: not-allowed; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      `}</style>
+    </div>
+  );
+}
+
 /* ─── Donut chart (pure SVG) ─── */
 function DonutChart({ data }) {
   const r = 44, cx = 52, cy = 52, stroke = 11;
   const circ = 2 * Math.PI * r;
-  const total = data.reduce((a, d) => a + d.value, 0);
-  let offset = 0;
+  const total = data.reduce((a, d) => a + d.value, 0) || 1;
   const colors = ["#3b82f6", "#06b6d4", "#a855f7", "#10b981", "#f59e0b"];
   return (
     <svg width={104} height={104}>
       {data.map((d, i) => {
         const dash = (d.value / total) * circ;
         const gap = circ - dash;
+        const offset = data
+          .slice(0, i)
+          .reduce((acc, prev) => acc + ((prev.value / total) * circ) + 2, 0);
         const el = (
           <circle key={i} cx={cx} cy={cy} r={r} fill="none"
             stroke={colors[i % colors.length]} strokeWidth={stroke}
@@ -37,7 +291,6 @@ function DonutChart({ data }) {
             strokeLinecap="round"
             style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }} />
         );
-        offset += dash + 2;
         return el;
       })}
       <text x={cx} y={cy - 4} textAnchor="middle" fontSize={11}
@@ -51,16 +304,20 @@ function DonutChart({ data }) {
 }
 
 /* ─── Section: Dashboard Overview ─── */
-function SectionDashboard({ quotes, portfolio }) {
+function SectionDashboard({ quotes, portfolio, activePortfolio, onStockClick }) {
   const up = portfolio.todayPnl >= 0;
   const top = quotes.slice(0, 6);
-  const donutData = [
-    { label: "Stocks", value: 160000 },
-    { label: "Mutual Funds", value: 112000 },
-    { label: "SIP", value: 28000 },
-    { label: "Gold", value: 8000 },
-    { label: "IPO", value: 4840 },
-  ];
+  const donutData = (activePortfolio?.holdings || [])
+    .map((h) => {
+      const quote = quotes.find((q) => q.label === h.companySymbol);
+      const ltp = quote ? Number(quote.price) : Number(h.averagePrice || 0);
+      return {
+        label: h.companySymbol,
+        value: (Number(h.quantity || 0) * ltp),
+      };
+    })
+    .filter((d) => d.value > 0)
+    .slice(0, 5);
   return (
     <div className="d-section fade-in">
       {/* Portfolio summary cards */}
@@ -92,7 +349,7 @@ function SectionDashboard({ quotes, portfolio }) {
         <div className="d-card" style={{ flex: "0 0 auto" }}>
           <div className="d-card-label" style={{ marginBottom: 14 }}>Portfolio Allocation</div>
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <DonutChart data={donutData} />
+            <DonutChart data={donutData.length > 0 ? donutData : [{ label: "Portfolio", value: Number(portfolio.current || 0) }]} />
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {donutData.map((d, i) => {
                 const colors = ["#3b82f6", "#06b6d4", "#a855f7", "#10b981", "#f59e0b"];
@@ -118,7 +375,7 @@ function SectionDashboard({ quotes, portfolio }) {
           {top.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {top.map((q) => (
-                <div key={q.label} className="mkt-row-item">
+                <div key={q.label} className="mkt-row-item" onClick={() => onStockClick(q)} style={{cursor: "pointer"}}>
                   <div>
                     <div style={{ fontWeight: 700, color: "var(--text-bright)", fontSize: 13 }}>{q.label}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)" }}>NSE</div>
@@ -154,12 +411,10 @@ function SectionDashboard({ quotes, portfolio }) {
         <div className="d-card-label" style={{ marginBottom: 14 }}>Quick Actions</div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {[
-            { icon: "📈", label: "Buy Stocks", color: "#3b82f6" },
-            { icon: "💰", label: "Invest in MF", color: "#06b6d4" },
-            { icon: "🔄", label: "Start SIP", color: "#a855f7" },
-            { icon: "🏆", label: "Apply IPO", color: "#f59e0b" },
-            { icon: "📊", label: "View Reports", color: "#10b981" },
-            { icon: "💎", label: "Digital Gold", color: "#ec4899" },
+            { icon: "📈", label: "Buy Shares", color: "#3b82f6" },
+            { icon: "📉", label: "Sell Shares", color: "#ef4444" },
+            { icon: "📊", label: "View Orders", color: "#10b981" },
+            { icon: "⭐", label: "Open Watchlist", color: "#f59e0b" },
           ].map((a) => (
             <div key={a.label} className="quick-action" style={{ "--qa-color": a.color }}>
               <span style={{ fontSize: 22 }}>{a.icon}</span>
@@ -173,11 +428,25 @@ function SectionDashboard({ quotes, portfolio }) {
 }
 
 /* ─── Section: Stocks ─── */
-function SectionStocks({ quotes }) {
+function SectionStocks({ quotes, portfolio, orders, historyData, onStockClick }) {
+  const { addOrder } = useData();
   const [tab, setTab] = useState("holdings");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [tradeType, setTradeType] = useState("BUY");
+  const [selectedStock, setSelectedStock] = useState(null);
+
+  const openTrade = (type, stock, e) => {
+    e.stopPropagation(); // Prevent opening details
+    setTradeType(type);
+    setSelectedStock(stock);
+    setModalOpen(true);
+  };
+
   const holdings = quotes.filter(q => ["RELIANCE", "TCS", "INFY", "WIPRO", "ITC"].includes(q.label));
   const watchlist = quotes.filter(q => ["BAJFIN", "ADANI", "HDFCBANK"].includes(q.label));
-  const display = tab === "holdings" ? holdings : watchlist;
+  // Fallback for demo if filters exclude everything or specific tabs selected
+  let display = tab === "holdings" ? holdings : watchlist;
+  if (display.length === 0 && quotes.length > 0) display = quotes; 
 
   return (
     <div className="d-section fade-in">
@@ -192,9 +461,9 @@ function SectionStocks({ quotes }) {
 
       {/* Summary row */}
       <div className="d-grid-3" style={{ marginBottom: 20 }}>
-        <div className="d-card"><div className="d-card-label">Invested</div><div className="d-card-value">₹1,60,000</div></div>
-        <div className="d-card"><div className="d-card-label">Current</div><div className="d-card-value pos">₹1,94,200</div></div>
-        <div className="d-card"><div className="d-card-label">P&L</div><div className="d-card-value pos">+₹34,200 (+21.4%)</div></div>
+        <div className="d-card"><div className="d-card-label">Invested</div><div className="d-card-value">₹{Number(portfolio.invested || 0).toLocaleString("en-IN")}</div></div>
+        <div className="d-card"><div className="d-card-label">Current</div><div className="d-card-value pos">₹{Number(portfolio.current || 0).toLocaleString("en-IN")}</div></div>
+        <div className="d-card"><div className="d-card-label">P&L</div><div className="d-card-value pos">₹{Number(portfolio.totalPnl || 0).toLocaleString("en-IN")} ({Number(portfolio.totalPct || 0).toFixed(2)}%)</div></div>
       </div>
 
       {/* Table */}
@@ -203,11 +472,11 @@ function SectionStocks({ quotes }) {
           <span style={{ flex: 2 }}>Stock</span>
           <span style={{ flex: 1, textAlign: "right" }}>LTP</span>
           <span style={{ flex: 1, textAlign: "right" }}>Chg%</span>
-          <span style={{ flex: 1, textAlign: "right" }}>7D Chart</span>
+          <span style={{ flex: 1, textAlign: "right" }}>Price History</span>
           <span style={{ flex: 1, textAlign: "right" }}>Action</span>
         </div>
         {display.length > 0 ? display.map((q) => (
-          <div key={q.label} className="d-table-row">
+          <div key={q.label} className="d-table-row" onClick={() => onStockClick(q)} style={{cursor: "pointer"}}>
             <div style={{ flex: 2 }}>
               <div style={{ fontWeight: 700, color: "var(--text-bright)", fontSize: 13 }}>{q.label}</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)" }}>NSE · Equity</div>
@@ -219,11 +488,11 @@ function SectionStocks({ quotes }) {
               {q.up ? "▲" : "▼"} {Math.abs(q.changePct)}%
             </div>
             <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
-              <Sparkline up={q.up} />
+              <PriceHistoryGraph series={historyData[q.label] || [Number(q.price)]} />
             </div>
             <div style={{ flex: 1, textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end" }}>
-              <button className="btn-xs buy">BUY</button>
-              <button className="btn-xs sell">SELL</button>
+              <button className="btn-xs buy" onClick={(e) => openTrade("BUY", q, e)}>BUY</button>
+              <button className="btn-xs sell" onClick={(e) => openTrade("SELL", q, e)}>SELL</button>
             </div>
           </div>
         )) : (
@@ -238,126 +507,16 @@ function SectionStocks({ quotes }) {
           ))
         )}
       </div>
-    </div>
-  );
-}
 
-/* ─── Section: Mutual Funds ─── */
-function SectionMF({ holdings }) {
-  return (
-    <div className="d-section fade-in">
-      <div className="d-page-title">🏦 Mutual Funds</div>
-      <div className="d-grid-3" style={{ marginBottom: 20 }}>
-        <div className="d-card"><div className="d-card-label">Invested</div><div className="d-card-value">₹1,45,000</div></div>
-        <div className="d-card"><div className="d-card-label">Current</div><div className="d-card-value pos">₹1,85,300</div></div>
-        <div className="d-card"><div className="d-card-label">XIRR</div><div className="d-card-value pos">+18.4%</div></div>
-      </div>
-      {holdings.map((f) => {
-        const ret = f.current - f.invested;
-        const pct = ((ret / f.invested) * 100).toFixed(1);
-        return (
-          <div key={f.name} className="d-card mf-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div style={{ fontWeight: 700, color: "var(--text-bright)", fontSize: 14, marginBottom: 4 }}>{f.name}</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span className="tag-chip">{f.type}</span>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
-                  </span>
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: "Share Tech Mono,monospace", fontSize: 14, color: "var(--text-bright)", fontWeight: 700 }}>
-                  ₹{f.current.toLocaleString("en-IN")}
-                </div>
-                <div className="pos" style={{ fontSize: 12 }}>+₹{ret.toLocaleString("en-IN")} (+{pct}%)</div>
-              </div>
-            </div>
-            <div className="mf-progress-track">
-              <div className="mf-progress-fill" style={{ width: `${Math.min((f.current / f.invested) * 100 - 100 + 20, 90)}%` }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Invested: ₹{f.invested.toLocaleString("en-IN")}</span>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-xs buy">+ Invest</button>
-                <button className="btn-xs" style={{ borderColor: "rgba(255,255,255,0.12)", color: "var(--text-muted)" }}>Redeem</button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─── Section: SIP ─── */
-function SectionSIP({ sips }) {
-  const totalSIP = sips.filter(s => s.status === "Active").reduce((a, s) => a + s.amt, 0);
-  return (
-    <div className="d-section fade-in">
-      <div className="d-page-title">🔄 SIP Manager</div>
-      <div className="d-grid-3" style={{ marginBottom: 20 }}>
-        <div className="d-card"><div className="d-card-label">Active SIPs</div><div className="d-card-value">{sips.filter(s => s.status === "Active").length}</div></div>
-        <div className="d-card"><div className="d-card-label">Monthly Amount</div><div className="d-card-value">₹{totalSIP.toLocaleString("en-IN")}</div></div>
-        <div className="d-card"><div className="d-card-label">Total Invested</div><div className="d-card-value">₹42,000</div></div>
-      </div>
-      <div className="d-card" style={{ marginBottom: 20 }}>
-        <div className="d-card-label" style={{ marginBottom: 14 }}>Your SIPs</div>
-        {sips.map((s) => (
-          <div key={s.name} className="sip-row">
-            <div className={`sip-status-dot ${s.status === "Active" ? "active" : "paused"}`} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, color: "var(--text-bright)", fontSize: 13 }}>{s.name}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Every {s.date} · Next: {s.nextDate}</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "Share Tech Mono,monospace", fontSize: 14, color: "var(--text-bright)", fontWeight: 700 }}>₹{s.amt.toLocaleString()}</div>
-              <span className={`status-badge ${s.status === "Active" ? "active" : "paused"}`}>{s.status}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <button className="btn-full-primary">+ Start New SIP</button>
-    </div>
-  );
-}
-
-/* ─── Section: IPO ─── */
-function SectionIPO({ ipos }) {
-  const statusColor = { open: "#10b981", upcoming: "#3b82f6", listed: "#94a3b8" };
-  return (
-    <div className="d-section fade-in">
-      <div className="d-page-title">🚀 IPO</div>
-      <div className="d-grid-3" style={{ marginBottom: 20 }}>
-        <div className="d-card"><div className="d-card-label">Open Now</div><div className="d-card-value" style={{ color: "var(--green)" }}>{ipos.filter(i => i.status === "open").length}</div></div>
-        <div className="d-card"><div className="d-card-label">Upcoming</div><div className="d-card-value" style={{ color: "#3b82f6" }}>{ipos.filter(i => i.status === "upcoming").length}</div></div>
-        <div className="d-card"><div className="d-card-label">Recently Listed</div><div className="d-card-value">{ipos.filter(i => i.status === "listed").length}</div></div>
-      </div>
-      {ipos.map((ipo) => (
-        <div key={ipo.name} className="d-card ipo-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ fontWeight: 700, color: "var(--text-bright)", fontSize: 14, marginBottom: 6 }}>{ipo.name}</div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Price Band: <span style={{ color: "var(--text-body)" }}>{ipo.price}</span></span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{ipo.open} – {ipo.close}</span>
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="ipo-status-badge" style={{ background: statusColor[ipo.status] + "22", color: statusColor[ipo.status], border: `1px solid ${statusColor[ipo.status]}44` }}>
-                {ipo.status.charAt(0).toUpperCase() + ipo.status.slice(1)}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
-                GMP: <span style={{ color: "var(--green)", fontFamily: "Share Tech Mono,monospace" }}>{ipo.gmp}</span>
-              </div>
-            </div>
-          </div>
-          {ipo.status === "open" && (
-            <button className="btn-xs buy" style={{ marginTop: 12, padding: "6px 18px", fontSize: 12 }}>Apply Now</button>
-          )}
-        </div>
-      ))}
+      {modalOpen && (
+        <TradeModal 
+          isOpen={modalOpen} 
+          onClose={() => setModalOpen(false)}
+          type={tradeType}
+          stock={selectedStock}
+          onConfirm={addOrder}
+        />
+      )}
     </div>
   );
 }
@@ -402,10 +561,13 @@ function SectionOrders({ orders }) {
 }
 
 /* ─── Section: Watchlist ─── */
-function SectionWatchlist({ quotes }) {
+function SectionWatchlist({ quotes, onStockClick }) {
   const [wl, setWl] = useState(["RELIANCE", "NIFTY 50", "TCS", "ADANI", "BAJFIN"]);
   const display = quotes.filter(q => wl.includes(q.label));
-  const remove = (label) => setWl(prev => prev.filter(s => s !== label));
+  const remove = (label, e) => {
+      e.stopPropagation();
+      setWl(prev => prev.filter(s => s !== label));
+  }
   return (
     <div className="d-section fade-in">
       <div className="d-page-title">⭐ Watchlist</div>
@@ -418,7 +580,7 @@ function SectionWatchlist({ quotes }) {
           <span style={{ flex: 1, textAlign: "right" }}>Remove</span>
         </div>
         {display.length > 0 ? display.map((q) => (
-          <div key={q.label} className="d-table-row">
+          <div key={q.label} className="d-table-row" onClick={() => onStockClick(q)} style={{cursor: "pointer"}}>
             <div style={{ flex: 2, fontWeight: 700, color: "var(--text-bright)", fontSize: 13 }}>{q.label}</div>
             <div style={{ flex: 2, textAlign: "right", fontFamily: "Share Tech Mono,monospace", fontSize: 13, color: "var(--text-bright)" }}>
               ₹{Number(q.price).toLocaleString("en-IN")}
@@ -430,7 +592,7 @@ function SectionWatchlist({ quotes }) {
               <Sparkline up={q.up} />
             </div>
             <div style={{ flex: 1, textAlign: "right" }}>
-              <button onClick={() => remove(q.label)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16 }}>×</button>
+              <button onClick={(e) => remove(q.label, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16 }}>×</button>
             </div>
           </div>
         )) : (
@@ -447,10 +609,15 @@ function SectionWatchlist({ quotes }) {
 
 export default function Home({ onLogout }) {
 
-const { stocks, mfHoldings, sips, ipos, orders, portfolio } = useData();
+const { stocks, orders, portfolio, activePortfolio } = useData();
 
 const [active, setActive] = useState("dashboard");
 const [sideOpen, setSideOpen] = useState(true);
+const [historyData, setHistoryData] = useState({});
+
+// Details Modal State
+const [detailsOpen, setDetailsOpen] = useState(false);
+const [selectedDetails, setSelectedDetails] = useState(null);
 
 /* Get user info from localStorage */
 const username = localStorage.getItem("username") || "Trader";
@@ -462,13 +629,40 @@ const isAdmin = role === "ADMIN";
 const now = new Date();
 const mktOpen = now.getHours() >= 9 && now.getHours() < 16;
 
+const openDetails = (stock) => {
+    setSelectedDetails(stock);
+    setDetailsOpen(true);
+}
+
+// Fetch history for all stocks at Home level so it's available for all sections
+useEffect(() => {
+    const fetchHistory = async () => {
+      const data = {};
+      await Promise.all(stocks.map(async (q) => {
+        if (q.id) {
+          try {
+            const hist = await getShareHistory(q.id);
+            // Backend returns DESC (newest first). Reverse for graph (oldest -> newest).
+            data[q.label] = hist.map(h => h.price).reverse();
+            // Append current price to show the latest point
+            if (q.price) data[q.label].push(Number(q.price));
+          } catch (e) {
+            console.error("Failed to fetch history for " + q.label, e);
+          }
+        }
+      }));
+      setHistoryData(data);
+    };
+
+    if (stocks.length > 0) {
+      fetchHistory();
+    }
+}, [stocks]); // Re-fetch only if stock list changes
+
 /* Navigation items */
 const baseNav = [
   { id: "dashboard", icon: "⊞", label: "Dashboard" },
   { id: "stocks", icon: "📊", label: "Stocks" },
-  { id: "mutualfunds", icon: "🏦", label: "Mutual Funds" },
-  { id: "sip", icon: "🔄", label: "SIP" },
-  { id: "ipo", icon: "🚀", label: "IPO" },
   { id: "orders", icon: "📋", label: "Orders" },
   { id: "watchlist", icon: "⭐", label: "Watchlist" },
 ];
@@ -476,26 +670,20 @@ const NAV_ITEMS = isAdmin
   ? [...baseNav, { id: "admin", icon: "⚙️", label: "Admin Panel" }]
   : baseNav;
 
-const Section = () => {
+const renderSection = () => {
   switch (active) {
     case "dashboard":
-      return <SectionDashboard quotes={stocks} portfolio={portfolio} />;
+      return <SectionDashboard quotes={stocks} portfolio={portfolio} activePortfolio={activePortfolio} onStockClick={openDetails} />;
     case "stocks":
-      return <SectionStocks quotes={stocks} />;
-    case "mutualfunds":
-      return <SectionMF holdings={mfHoldings} />;
-    case "sip":
-      return <SectionSIP sips={sips} />;
-    case "ipo":
-      return <SectionIPO ipos={ipos} />;
+      return <SectionStocks quotes={stocks} portfolio={portfolio} orders={orders} historyData={historyData} onStockClick={openDetails} />;
     case "orders":
       return <SectionOrders orders={orders} />;
     case "watchlist":
-      return <SectionWatchlist quotes={stocks} />;
+      return <SectionWatchlist quotes={stocks} onStockClick={openDetails} />;
     case "admin":
       return <AdminPanel />;
     default:
-      return <SectionDashboard quotes={stocks} portfolio={portfolio} />;
+      return <SectionDashboard quotes={stocks} portfolio={portfolio} activePortfolio={activePortfolio} onStockClick={openDetails} />;
   }
 };
 
@@ -565,9 +753,19 @@ return (
 
       {/* Section content */}
       <div className="dash-content">
-        <Section />
+        {renderSection()}
       </div>
     </main>
+
+    {/* Details Modal (Global) */}
+    {detailsOpen && selectedDetails && (
+        <StockDetailsModal 
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        stock={selectedDetails}
+        history={historyData[selectedDetails.label]}
+        />
+    )}
 
     {/* ── Dashboard CSS (scoped inline) ── */}
     <style>{`
@@ -757,40 +955,10 @@ return (
         .btn-xs.buy:hover  { background:rgba(16,185,129,0.28); }
         .btn-xs.sell { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:var(--red); }
         .btn-xs.sell:hover { background:rgba(239,68,68,0.28); }
-        .btn-full-primary {
-          width:100%; padding:13px; background:linear-gradient(135deg,var(--sapphire),var(--royal));
-          border:none; border-radius:11px; cursor:pointer; font-family:'Sora',sans-serif;
-          font-size:14px; font-weight:700; color:#fff; transition:all 0.2s;
-          box-shadow:0 4px 20px rgba(37,99,235,0.35);
-        }
-        .btn-full-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(37,99,235,0.5); }
-
         /* Tags / badges */
-        .tag-chip {
-          padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600;
-          background:rgba(37,99,235,0.15); border:1px solid rgba(37,99,235,0.25); color:var(--sapphire-l);
-        }
-        .status-badge { font-size:10px; font-weight:600; font-family:'Share Tech Mono',monospace; }
-        .status-badge.active { color:var(--green); }
-        .status-badge.paused { color:#f59e0b; }
-        .ipo-status-badge { font-size:10.5px; font-weight:600; padding:3px 10px; border-radius:20px; display:inline-block; }
         .order-type-badge { padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; font-family:'Share Tech Mono',monospace; }
         .buy-badge  { background:rgba(16,185,129,0.15); color:var(--green); border:1px solid rgba(16,185,129,0.25); }
         .sell-badge { background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.25); }
-
-        /* MF progress */
-        .mf-progress-track { height:3px; background:rgba(255,255,255,0.06); border-radius:4px; margin:14px 0 8px; overflow:hidden; }
-        .mf-progress-fill  { height:100%; background:linear-gradient(90deg,var(--sapphire),var(--azure)); border-radius:4px; }
-
-        /* SIP */
-        .sip-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid var(--glass-border-s); }
-        .sip-row:last-child { border-bottom:none; }
-        .sip-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-        .sip-status-dot.active { background:var(--green); box-shadow:0 0 6px var(--green); }
-        .sip-status-dot.paused { background:#f59e0b; }
-
-        /* IPO */
-        .ipo-card { margin-bottom:14px; }
 
         /* Colors */
         .pos { color:var(--green); }

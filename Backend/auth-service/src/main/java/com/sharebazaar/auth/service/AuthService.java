@@ -1,5 +1,7 @@
 package com.sharebazaar.auth.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import com.sharebazaar.auth.domain.Role;
 import com.sharebazaar.auth.domain.User;
 import com.sharebazaar.auth.dto.AuthResponse;
@@ -121,7 +123,61 @@ public class AuthService {
         log.info("Account deleted: id={}", user.getId());
     }
 
+    @Transactional(readOnly = true)
+    public List<UserDto> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::toUserDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public UserDto getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new GlobalException("User not found"));
+        return toUserDto(user);
+    }
+
+    @Transactional
+    public UserDto updateUser(Long id, UserDto userDto) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new GlobalException("User not found"));
+
+        if (userDto.getUsername() != null && !userDto.getUsername().isBlank()) {
+             if (!user.getUsername().equals(userDto.getUsername()) && userRepository.existsByUsername(userDto.getUsername())) {
+                  throw new GlobalException("Username is already taken");
+             }
+             user.setUsername(userDto.getUsername());
+        }
+
+        if (userDto.getEmail() != null && !userDto.getEmail().isBlank()) {
+             if (!user.getEmail().equals(userDto.getEmail()) && userRepository.existsByEmail(userDto.getEmail())) {
+                  throw new GlobalException("Email is already registered");
+             }
+             user.setEmail(userDto.getEmail());
+        }
+
+        if (userDto.getRole() != null) {
+            try {
+                user.setRole(Role.valueOf(userDto.getRole()));
+            } catch (IllegalArgumentException e) {
+                throw new GlobalException("Invalid role: " + userDto.getRole());
+            }
+        }
+        
+        user.setEnabled(userDto.isEnabled());
+
+        return toUserDto(userRepository.save(user));
+    }
+
+    @Transactional
+    public void deleteUser(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new GlobalException("User not found");
+        }
+        userRepository.deleteById(id);
+    }
+
     private UserDto toUserDto(User user) {
-        return new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getRole().name());
+        return new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getRole().name(), user.isEnabled());
     }
 }

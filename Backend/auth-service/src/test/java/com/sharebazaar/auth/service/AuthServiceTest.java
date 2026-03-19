@@ -255,4 +255,102 @@ class AuthServiceTest {
                 () -> authService.deleteAccount("missing@example.com"));
         assertEquals("User not found", exception.getMessage());
     }
+
+    // ---- Admin User Management Tests ----
+
+    @Test
+    void getAllUsersShouldReturnList() {
+        User user1 = new User(1L, "user1", "user1@example.com", "pass");
+        User user2 = new User(2L, "user2", "user2@example.com", "pass");
+
+        when(userRepository.findAll()).thenReturn(java.util.List.of(user1, user2));
+
+        java.util.List<UserDto> result = authService.getAllUsers();
+
+        assertEquals(2, result.size());
+        assertEquals("user1", result.get(0).getUsername());
+        assertEquals("user2", result.get(1).getUsername());
+    }
+
+    @Test
+    void getUserByIdShouldReturnUser() {
+        User user = new User(1L, "user1", "user1@example.com", "pass");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UserDto result = authService.getUserById(1L);
+
+        assertEquals(1L, result.getId());
+        assertEquals("user1", result.getUsername());
+    }
+
+    @Test
+    void getUserByIdShouldFailWhenNotFound() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        GlobalException exception = assertThrows(GlobalException.class,
+                () -> authService.getUserById(999L));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void updateUserShouldSucceed() {
+        User existingUser = new User(1L, "old_name", "old@example.com", "pass");
+        UserDto updateDto = new UserDto(1L, "new_name", "new@example.com", "ADMIN", true);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.existsByUsername("new_name")).thenReturn(false);
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserDto result = authService.updateUser(1L, updateDto);
+
+        assertEquals("new_name", result.getUsername());
+        assertEquals("new@example.com", result.getEmail());
+        assertEquals("ADMIN", result.getRole());
+        assertTrue(result.isEnabled());
+    }
+
+    @Test
+    void updateUserShouldFailWhenUsernameTaken() {
+        User existingUser = new User(1L, "old_name", "old@example.com", "pass");
+        UserDto updateDto = new UserDto(1L, "taken_name", "old@example.com", "USER", true);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.existsByUsername("taken_name")).thenReturn(true);
+
+        GlobalException exception = assertThrows(GlobalException.class,
+                () -> authService.updateUser(1L, updateDto));
+        assertEquals("Username is already taken", exception.getMessage());
+    }
+
+    @Test
+    void updateUserShouldFailWhenEmailTaken() {
+        User existingUser = new User(1L, "old_name", "old@example.com", "pass");
+        UserDto updateDto = new UserDto(1L, "old_name", "taken@example.com", "USER", true);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
+
+        GlobalException exception = assertThrows(GlobalException.class,
+                () -> authService.updateUser(1L, updateDto));
+        assertEquals("Email is already registered", exception.getMessage());
+    }
+
+    @Test
+    void deleteUserShouldSucceed() {
+        when(userRepository.existsById(1L)).thenReturn(true);
+
+        authService.deleteUser(1L);
+
+        verify(userRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteUserShouldFailWhenNotFound() {
+        when(userRepository.existsById(999L)).thenReturn(false);
+
+        GlobalException exception = assertThrows(GlobalException.class,
+                () -> authService.deleteUser(999L));
+        assertEquals("User not found", exception.getMessage());
+    }
 }

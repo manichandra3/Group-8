@@ -12,6 +12,7 @@ import com.sharebazaar.portfolio.repository.PortfolioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,14 +48,19 @@ public class PortfolioService {
         return mapToResponse(portfolio);
     }
 
-    @Transactional(readOnly = true)
-    public List<PortfolioResponse> getCustomerPortfolios(Long userId) {
+    @Transactional
+    public List<PortfolioResponse> getCustomerPortfolios(Long userId, String userEmail) {
         Customer customer = customerRepository.findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Customer not found for user id: " + userId));
+            .orElseGet(() -> {
+                Customer newCustomer = new Customer();
+                newCustomer.setUserId(userId);
+                newCustomer.setEmail(userEmail);
+                newCustomer.setName(userEmail); // Using email as name for now
+                return customerRepository.save(newCustomer);
+            });
 
-        List<Portfolio> portfolios = portfolioRepository.findByCustomerIdAndActiveTrue(customer.getId());
-        
-        return portfolios.stream()
+        return portfolioRepository.findByCustomerIdAndActiveTrue(customer.getId())
+            .stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
     }

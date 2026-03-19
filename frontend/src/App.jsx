@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 import Login from "./components/Login";
@@ -6,7 +6,6 @@ import Register from "./components/Register";
 import Home from "./pages/Home";
 import AdminDashboard from "./pages/AdminDashboard";
 
-import { fetchAllQuotes } from "./stockService";
 import "./index.css";
 import { useData } from "./context/DataContext";
 
@@ -78,45 +77,14 @@ function ProtectedRoute({ children, roleRequired }) {
 /* ─── Root App ─── */
 export default function App() {
   const navigate = useNavigate();
-  const { logout } = useData();
-
-  const [quotes, setQuotes] = useState([]);
-  const [tickerLoading, setTickerLoading] = useState(true);
-
-  /* Fetch market data */
-  useEffect(() => {
-
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const data = await fetchAllQuotes();
-
-        if (mounted && data.length > 0) {
-          setQuotes(data);
-          setTickerLoading(false);
-        }
-
-      } catch {
-        if (mounted) setTickerLoading(false);
-      }
-    };
-
-    load();
-    const interval = setInterval(load, 60000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-
-  }, []);
+  const { logout, stocks, marketLoading } = useData();
+  const quotes = useMemo(() => stocks || [], [stocks]);
 
   return (
     <>
       <BgCanvas />
 
-      <TickerBar quotes={quotes} loading={tickerLoading} />
+      <TickerBar quotes={quotes} loading={marketLoading} />
 
       <div className="page-wrap">
 
@@ -125,7 +93,7 @@ export default function App() {
           {/* LOGIN */}
           <Route
             path="/login"
-            element={<Login quotes={quotes} />}
+            element={<Login />}
           />
 
           {/* REGISTER */}
