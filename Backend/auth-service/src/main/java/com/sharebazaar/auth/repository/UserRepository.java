@@ -3,7 +3,6 @@ package com.sharebazaar.auth.repository;
 import com.sharebazaar.auth.domain.Role;
 import com.sharebazaar.auth.domain.User;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

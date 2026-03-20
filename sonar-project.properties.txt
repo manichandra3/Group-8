@@ -1,0 +1,20 @@
+# Project identification
+sonar.projectKey=share-bazaar
+sonar.projectName=ShareBazaar
+sonar.projectVersion=1.0
+
+# Source code paths
+sonar.sources=Backend/src,frontend/src
+
+# Exclude unnecessary files/folders
+sonar.exclusions=Backend/target/**,frontend/node_modules/**,frontend/build/**
+
+# Language settings
+sonar.language=java,js,ts
+
+# Encoding
+sonar.sourceEncoding=UTF-8
+
+# Authentication token
+sonar.login=sqp_5c3aee797f5fd5da2e8a54286a6caddd64c7c94a
+sonar.host.url=http://localhost:9000
